@@ -171,6 +171,7 @@ __sfr __at (0x99) IO_VDP2;
 #define H_TIMI		0xfd9a	// (WORD) Interrupt Hook
 #define EXTBIO		0xffca	// (...) Extended BIOS call
 #define RG8SAV		0xffe7	// (BYTE) Mirror Of VDP Register 8 (R#8)
+#define RG9SAV		0xffe8	// (BYTE) Mirror of VDP register 9 (Basic: VDP(10), note: +1)
 
 // MSX-DOS system variables
 
@@ -258,6 +259,15 @@ volatile __at (NEWKEY+11) struct {
 	unsigned unused6: 1;
 	unsigned unused7: 1;
 } varNEWKEY_row11;
+volatile __at (RG9SAV) struct {
+	unsigned DC: 1;
+	unsigned NT: 1;			// 0:NTSC, 1:PAL
+	unsigned E0: 1;
+	unsigned IL: 1;			// 0:non-interlace, 1:interlace
+	unsigned SM: 2;			// Simultaneous mode
+	unsigned unused6: 1;
+	unsigned LN: 1;			// 0:192 lines, 1:212 lines
+} varRG9SAV;
 
 
 // ========================================================
