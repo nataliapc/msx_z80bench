@@ -58,6 +58,8 @@ static uint8_t originalBDRCLR;
 
 // ========================================================
 
+uint8_t getRomByte(uint16_t address) __sdcccall(1);
+
 void setByteVRAM(uint16_t vram, uint8_t value) __sdcccall(0);
 void _fillVRAM(uint16_t vram, uint16_t len, uint8_t value) __sdcccall(0);
 void _copyRAMtoVRAM(uint16_t memory, uint16_t vram, uint16_t size) __sdcccall(0);
@@ -88,6 +90,15 @@ static void checkPlatformSystem()
 
 	// Set abort exit routine
 	dos2_setAbortRoutine((void*)abortRoutine);
+}
+
+static void disableSprites()
+{
+	__asm
+		ld  bc, #0x0a08		; Register #08 = 10
+		ld  ix, #WRTVDP
+		BIOSCALL
+	__endasm;
 }
 
 void abortRoutine()
@@ -336,10 +347,11 @@ void setCustomInterrupt() __naked
 	cont$:
 		in  a,(0x99)			;Read S#0
 		bit 0, a				;Does INT originate from VDP?
-		jp  z,notFromVDP$		;No -> go to exit
+		jr  z,notFromVDP$		;No -> go to exit
 
-		ld  hl,#_im2_counter	;Nr. of interrupts counter
-		inc (hl)				;Increase counter by one
+		ld hl, (_im2_counter)	;Nr. of interrupts counter
+		inc hl					;Increase counter by one
+		ld (_im2_counter), hl
 
 	notFromVDP$:
 		pop af					;Restore modified registers
@@ -352,6 +364,7 @@ void setCustomInterrupt() __naked
 
 
 // ========================================================
+#define MULTIPLIER		0.8f
 void calculateMhz()
 {
 	vdpFreq = varRG9SAV.NT ? 50 : 60;
@@ -410,6 +423,7 @@ int main(char **argv, int argc) __sdcccall(0)
 
 	// Initialize screen 0[80]
 	textmode(BW80);
+	disableSprites();
 	textattr(0x24f4);
 	setcursortype(NOCURSOR);
 	redefineCharPatterns();
@@ -424,12 +438,10 @@ int main(char **argv, int argc) __sdcccall(0)
 		click();
 
 		if (!varNEWKEY_row6.f1) {
-			outportb(0x40, 8);
-			outportb(0x41, 1);
+			setTurboPana(false);
 		} else
 		if (!varNEWKEY_row6.f2) {
-			outportb(0x40, 8);
-			outportb(0x41, 0);
+			setTurboPana(true);
 		}
 		varPUTPNT = varGETPNT;
 	} while (varNEWKEY_row7.esc);
