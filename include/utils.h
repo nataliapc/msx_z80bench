@@ -32,6 +32,7 @@ void setKanjiMode(uint8_t mode) __z88dk_fastcall;
 
 bool detectR800() __sdcccall(0);
 bool detectZ280() __sdcccall(0);
+bool detectTurboPana() __sdcccall(1);
 bool setTurboPana(bool enabled) __sdcccall(1);
 
 #endif//__UTILS_H__

@@ -21,26 +21,41 @@ static const char titleStr[] = "\x86 Z80 Frequency Benchmark v1.0.1 \x87";
 static const char authorStr[] = "\x86 NataliaPC \x87";
 
 
-static const char axisXLabels[6][6] = {
+static const char axisXLabelsStr[6][6] = {
 	" 5MHz", "10MHz", "15MHz", "20MHz", "25MHz", "  30"
 };
-static const char axisYLabels[8][14] = {
+static const char axisYLabelsStr[8][14] = {
 	"CPU speed", "(MHz)", "", "MSX standard", "(3.579MHz)", "", "MSX2+ tPANA", "(5.369MHz)"
 };
 
 #define CPU_Z80		0
 #define CPU_R800	1
 #define CPU_Z280	2
-static const char cpuTypes[3][5] = {
+static const char cpuTypesStr[3][5] = {
 	"Z80", "R800", "Z280"
 };
 
-static const char vdpModes[2][12] = {
+static const char vdpModesStr[2][12] = {
 	"NTSC (60Hz)", "PAL (50Hz)"
 };
 
-const char speedLine[] = "         \x92         \x92         \x92         \x92         \x92";
-const char OUTPUT[] = { ' ', '0', '.', '0', '0', '\0' };
+static const char *machineTypeStr[] = {
+	// [0-3] ROM Byte $2D
+	"MSX1", "MSX2", "MSX2+", "MSX TurboR"
+};
+static const char *machineBrandStr[] = {
+	// [0] Unknown
+	"??",
+	// [1-26] I/O port $40
+	"ASCII", "Canon", "Casio", "Fujitsu", "General", "Hitachi", "Kyocera", "Panasonic", "Mitsubishi", "NEC", 
+	"Yamaha", "JVC", "Philips", "Pioneer", "Sanyo", "Sharp", "Sony", "Spectravideo", "Toshiba", "Mitsumi", 
+	"Telematica", "Gradiente", "Sharp Brasil", "GoldStar", "Daewoo", "Samsung"
+	// [27] OCM/MSX++
+	"OCM/MSX++"
+};
+
+const char speedLineStr[] = "         \x92         \x92         \x92         \x92         \x92";
+
 const float speedDecLimits[] = { .07f, .14f, .21f, .28f, .35f, .42f, .49f };
 
 static uint8_t vdpFreq;
@@ -48,6 +63,10 @@ static float calculatedFreq = 0;
 static uint16_t im2_counter;
 
 static uint8_t msxVersionROM;
+static uint8_t cpuType = CPU_Z80;
+static uint8_t turboPana;
+static uint8_t machineBrand;
+
 static uint8_t kanjiMode;
 static uint8_t originalLINL40;
 static uint8_t originalSCRMOD;
@@ -66,12 +85,12 @@ void _copyRAMtoVRAM(uint16_t memory, uint16_t vram, uint16_t size) __sdcccall(0)
 
 void abortRoutine();
 void restoreScreen();
+uint8_t detectMachineBrand();
 
 
 // ========================================================
 static void checkPlatformSystem()
 {
-	msxVersionROM = getRomByte(MSXVER);
 	originalLINL40 = varLINL40;
 	originalSCRMOD = varSCRMOD;
 	originalFORCLR = varFORCLR;
@@ -79,6 +98,7 @@ static void checkPlatformSystem()
 	originalBDRCLR = varBDRCLR;
 
 	// Check MSX2 ROM or higher
+	msxVersionROM = getRomByte(MSXVER);
 	if (!msxVersionROM) {
 		die("This don't works on MSX1!");
 	}
@@ -87,9 +107,34 @@ static void checkPlatformSystem()
 	if (dosVersion() < VER_MSXDOS1x) {
 		die("MSX-DOS 2.x or higher required!");
 	}
-
 	// Set abort exit routine
 	dos2_setAbortRoutine((void*)abortRoutine);
+
+	// Check CPU type
+	if (detectZ280()) cpuType = CPU_Z280;
+	else if (detectR800()) cpuType = CPU_R800;
+
+	// Check MSX2+ w/tPANA
+	turboPana = detectTurboPana();
+
+	// Machine type
+	machineBrand = detectMachineBrand();
+
+}
+
+uint8_t detectMachineBrand()
+{
+	uint8_t result = 0;
+	uint8_t port40 = 255 - inportb(0x40);
+	for (uint8_t i=1; i<=26; i++) {
+		outportb(0x40, i);
+		if (inportb(0x40) == 255 - i) {
+			result = i;
+			break;
+		}
+	}
+	outportb(0x40, port40);
+	return result;
 }
 
 static void disableSprites()
@@ -125,6 +170,7 @@ void click() __naked
 
 		ld   b,#20
 	click_loop:
+		nop
 		djnz click_loop
 
 		in   a,(0xAA)
@@ -136,7 +182,7 @@ void click() __naked
 
 // ========================================================
 #define GR_X	17
-#define GR_Y	7
+#define GR_Y	8
 #define GR_H	9
 #define LABELSY_X 	GR_X-13
 #define LABELSY_Y 	GR_Y+1
@@ -166,27 +212,35 @@ void drawPanel()
 	putlinexy(65, 24, 13, authorStr);
 
 	// Info
-	drawFrame(3,2, 39,6);
-	putstrxy(5,3, "CPU Type  :");
-	putstrxy(5,4, "CPU Speed :");
-	putstrxy(5,5, "Video Mode:");
+	drawFrame(3,2, 39,7);
+	putstrxy(5,3, "Machine   :");
+	putstrxy(5,4, "CPU Type  :");
+	putstrxy(5,5, "CPU Speed :");
+	putstrxy(5,6, "Video Mode:");
 	textblink(16,3, 23, true);
 	textblink(16,4, 23, true);
 	textblink(16,5, 23, true);
+	textblink(16,6, 23, true);
+
+	// Machine type
+	if (machineBrand == 0) {
+		csprintf(heap_top, "%s", machineTypeStr[msxVersionROM]);
+	} else {
+		csprintf(heap_top, "%s (%s)", machineTypeStr[msxVersionROM], machineBrandStr[machineBrand]);
+	}
+	putstrxy(17,3, heap_top);
 
 	// CPU type
-	uint8_t cpuType = CPU_Z80;
-	if (detectZ280()) cpuType = CPU_Z280;
-	else if (detectR800()) cpuType = CPU_R800;
-	putstrxy(17,3, cpuTypes[cpuType]);
+	putstrxy(17,4, cpuTypesStr[cpuType]);
 
-	putlinexy(17,4, 2, "--");
+	// Frequency
+	putlinexy(17,5, 2, "--");
 
 	// Video mode
-	putstrxy(17,5, vdpModes[varRG9SAV.NT]);
+	putstrxy(17,6, vdpModesStr[varRG9SAV.NT]);
 
 	// Info frame
-	drawFrame(40, 2, 78, 6);
+	drawFrame(40, 2, 78, 7);
 	putstrxy(42, 3, "This computer performs like a Z80");
 	putstrxy(42, 4, "at (CPU Speed) MHz.");
 
@@ -198,7 +252,7 @@ void drawPanel()
 	// Labels X
 	for (i=1; i<7; i++) {
 		putlinexy(GR_X+i*10-9,GR_Y+GR_H, 10, "\x91\x90\x91\x90\x91\x90\x91\x90\x91\x8f");
-		putstrxy(GR_X-2+i*10,GR_Y+GR_H+1, axisXLabels[i-1]);
+		putstrxy(GR_X-2+i*10,GR_Y+GR_H+1, axisXLabelsStr[i-1]);
 		for (j=GR_Y; j<GR_Y+GR_H; j++) {
 			putlinexy(GR_X+i*10,j, 1, "\x92");
 		}
@@ -206,7 +260,7 @@ void drawPanel()
 
 	// Labels Y
 	for (i=0; i<8; i++) {
-		putstrxy(LABELSY_X, LABELSY_Y+i, axisYLabels[i]);
+		putstrxy(LABELSY_X, LABELSY_Y+i, axisYLabelsStr[i]);
 	}
 
 	// Draw fixed graphs
@@ -228,7 +282,7 @@ void drawCpuSpeed()
 
 	// Prepare line buffer
 	speedDecimal -= speedUnits * 0.5f;
-	memcpy(heap_top, speedLine, 60);
+	memcpy(heap_top, speedLineStr, 60);
 	memset(heap_top, '\x8e', speedUnits);
 	for (uint8_t i=0; i<sizeof(speedDecLimits); i++) {
 		if (speedDecimal <= speedDecLimits[i]) {
@@ -267,7 +321,7 @@ void drawCpuSpeed()
 	*(q+5) = '\0';
 	if (*q == ' ') q++;
 	csprintf(heap_top, "%s MHz  ", q);
-	putstrxy(17,4, heap_top);
+	putstrxy(17,5, heap_top);
 }
 
 // ========================================================
