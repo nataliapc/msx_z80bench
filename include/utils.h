@@ -30,9 +30,17 @@ bool detectKanjiDriver() __z88dk_fastcall;
 char getKanjiMode() __sdcccall(1);
 void setKanjiMode(uint8_t mode) __z88dk_fastcall;
 
+uint8_t detectVDP() __sdcccall(1);
 bool detectR800() __sdcccall(0);
 bool detectZ280() __sdcccall(0);
-bool detectTurboPana() __sdcccall(1);
+bool detectTurboPana() __z88dk_fastcall;
 bool setTurboPana(bool enabled) __sdcccall(1);
+
+#define TIDES_3MHZ		0
+#define TIDES_6MHZ		1
+#define TIDES_10MHZ		2
+#define TIDES_20MHZ		3
+#define TIDES_SLOTS357	4
+void setTidesSpeed(uint8_t speed) __z88dk_fastcall;
 
 #endif//__UTILS_H__
