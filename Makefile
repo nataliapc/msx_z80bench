@@ -46,7 +46,7 @@ WRFLAGS = --disable-warning 196 --disable-warning 84
 CCFLAGS = --code-loc 0x0180 --data-loc 0 -mz80 --no-std-crt0 --out-fmt-ihx $(OPFLAGS) $(WRFLAGS) $(DEFINES) $(DEBUG)
 
 LIBS = $(LIBDIR)/conio.lib $(LIBDIR)/dos.lib $(LIBDIR)/utils.lib
-SRC = heap.c
+SRC = heap.c ocm_ioports.c
 PROG = z80bench.com
 
 all: $(PROG) $(LIBS)

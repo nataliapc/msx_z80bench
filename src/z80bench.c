@@ -7,64 +7,23 @@
 #include "dos.h"
 #include "conio.h"
 #include "utils.h"
+#include "ocm_ioports.h"
 #include "patterns.h"
 #include "msx_const.h"
+#include "z80bench.h"
+
+
+#define MSX_CLOCK		3.579545455f	// MHz
 
 #define intVecTabAd		0x8000		// Put the Interrupt Vector Table here
 #define intVecHalfAd	0x80		// High memory address pointer
 #define intRoutStart	0x8181		// Let interrupt routine start here
 #define intRoutHalfAd	0x81		// Address high and low
 
-#define MSX_CLOCK		3.579545455f	// MHz
-
-static const char titleStr[] = "\x86 Z80 Frequency Benchmark v1.1.0b \x87";
-static const char authorStr[] = "\x86 NataliaPC \x87";
-
-static const char axisXLabelsStr[6][6] = {
-	" 5MHz", "10MHz", "15MHz", "20MHz", "25MHz", "  30"
-};
-static const char axisYLabelsStr[8][14] = {
-	"CPU speed", "(MHz)", "", "MSX standard", "(3.579MHz)", "", "MSX2+ tPANA", "(5.369MHz)"
-};
-
-static const char cpuTypesStr[3][12] = {
-	"Z80        ", "R800", "Z280"
-};
-
-static const char vdpTypeStr[3][9] = {
-	"TMS9918A", "V9938", "V9958"
-};
-
-static const char turboRmodeStr[3][5] = {
-	"", "ROM", "DRAM"
-};
-
-static const char vdpModesStr[2][12] = {
-	"(NTSC 60Hz)", "(PAL 50Hz) "
-};
-
-static const char *machineTypeStr[] = {
-	// [0-3] ROM Byte $2D
-	"MSX1", "MSX2", "MSX2+", "MSX TurboR"
-};
-static const char *machineBrandStr[] = {
-	// [0] Unknown
-	"??",
-	// [1-26] I/O port $40
-	"ASCII", "Canon", "Casio", "Fujitsu", "General", "Hitachi", "Kyocera", "Panasonic", "Mitsubishi", "NEC", 
-	"Yamaha", "JVC", "Philips", "Pioneer", "Sanyo", "Sharp", "Sony", "Spectravideo", "Toshiba", "Mitsumi", 
-	"Telematica", "Gradiente", "Sharp Brasil", "GoldStar", "Daewoo", "Samsung"
-	// [27] OCM/MSX++
-	"OCM/MSX++"
-};
-
-const char speedLineStr[] = "         \x92         \x92         \x92         \x92         \x92";
-
-const float speedDecLimits[] = { .07f, .14f, .21f, .28f, .35f, .42f, .49f };
 
 static uint8_t vdpFreq;
 static float calculatedFreq = 0;
-static uint16_t im2_counter;
+static uint16_t im2_counter = 0;
 
 #define MSX_1		0
 #define MSX_2		1
@@ -89,6 +48,9 @@ static bool turboRdetected;
 #define TR_R800_DRAM	2
 static uint8_t turboRmode = TR_Z80;
 
+static bool ocmDetected;
+static uint8_t ocmSpeedIdx = -1;
+
 static uint8_t tidesSpeed = TIDES_20MHZ;
 
 static uint8_t kanjiMode;
@@ -98,21 +60,6 @@ static uint8_t originalFORCLR;
 static uint8_t originalBAKCLR;
 static uint8_t originalBDRCLR;
 static uint8_t originalCLIKSW;
-
-
-// ========================================================
-
-uint8_t getRomByte(uint16_t address) __sdcccall(1);
-
-void setByteVRAM(uint16_t vram, uint8_t value) __sdcccall(0);
-void _fillVRAM(uint16_t vram, uint16_t len, uint8_t value) __sdcccall(0);
-void _copyRAMtoVRAM(uint16_t memory, uint16_t vram, uint16_t size) __sdcccall(0);
-
-void abortRoutine();
-void restoreScreen();
-uint8_t detectMachineBrand();
-bool detectTurboR() __z88dk_fastcall;
-uint8_t detectCPUtype();
 
 
 // ========================================================
@@ -147,6 +94,9 @@ static void checkPlatformSystem()
 	// Check TurboR
 	turboRdetected = detectTurboR();
 
+	// Check OCM-PLD/MSX++
+	ocmDetected = ocm_detectDevice(DEVID_OCMPLD);
+
 	// Machine type
 	machineBrand = detectMachineBrand();
 
@@ -163,6 +113,9 @@ uint8_t detectCPUtype()
 
 uint8_t detectMachineBrand()
 {
+	if (ocmDetected) {
+		return BRAND_OCMPLD;
+	}
 	uint8_t result = 0;
 	uint8_t port40 = 255 - inportb(0x40);
 	for (uint8_t i=1; i<=26; i++) {
@@ -198,8 +151,10 @@ void click() __naked
 		and  #0x7F
 		out  (0xAA),a
 
-		ei
-		halt
+		ld   b,#30
+	click_loop:
+		nop
+		djnz click_loop
 
 		in   a,(0xAA)
 		or   #0x80
@@ -238,11 +193,10 @@ void setCpuTurboR(uint8_t mode) __naked __z88dk_fastcall
 	__endasm;
 }
 
-void setNTSC(bool enabled) __naked __z88dk_fastcall
+void setNTSC(bool enabled) __naked __sdcccall(1)
 {
 	enabled;
 	__asm
-		ld   a, l
 		and  #1
 		add  a
 		ld   l, a
@@ -254,7 +208,6 @@ void setNTSC(bool enabled) __naked __z88dk_fastcall
 		ld   c, #0x09		; Register #09
 		ld   ix, #WRTVDP
 		JP_BIOSCALL
-		ret
 	__endasm;
 }
 
@@ -378,12 +331,17 @@ void drawPanel()
 	}
 
 	if (msxVersionROM == MSX_TR) {
-		putstrxy(16,22, "[F2] Toggle");
+		putstrxy(16,22, "[F2] Cycle");
 		putstrxy(16,23, "TurboR CPU");
 	}
 
-	putstrxy(42,22, "[F4] Toggle");
-	putstrxy(42,23, "Tides Speed");
+	if (ocmDetected) {
+		putstrxy(29,22, "[F3] Cycle");
+		putstrxy(29,23, "OCM Speed");
+	}
+
+//	putstrxy(42,22, "[F4] Toggle");
+//	putstrxy(42,23, "Tides Speed");
 
 	putstrxy(68,22, "[F6] Toggle");
 	putstrxy(68,23, "NTSC/PAL");
@@ -394,13 +352,12 @@ void drawPanel()
 
 void drawCpuSpeed()
 {
-	float speed = calculatedFreq;
-	float speedDecimal = calculatedFreq;
-	uint16_t digit, speedUnits = (uint8_t)floorf(speed / .5f);
+	float speed = calculatedFreq + 0.001f;
+	uint16_t digit, speedUnits = (uint8_t)(speed * 2.f);
+	float speedDecimal = calculatedFreq - speedUnits * 0.5f;
 	char *p, *q;
 
 	// Prepare line buffer
-	speedDecimal -= speedUnits * 0.5f;
 	memcpy(heap_top, speedLineStr, 60);
 	memset(heap_top, '\x8e', speedUnits);
 	for (uint8_t i=0; i<sizeof(speedDecLimits); i++) {
@@ -411,13 +368,13 @@ void drawCpuSpeed()
 	}
 
 	// Print speed numbers
-	q = p = heap_top + speedUnits + 1;
+	q = p = heap_top + speedUnits + 2;
 	*p = ' ';
 
 	digit = (uint8_t)floorf(speed);
 	if (digit>=10) 
-		*p = '0' + digit/10;
-	*++p = '0' + digit%10;
+		*p++ = '0' + digit/10;
+	*p = '0' + digit%10;
 	speed -= digit;
 
 	*++p = '.';
@@ -434,10 +391,13 @@ void drawCpuSpeed()
 	ASM_EI; ASM_HALT;
 	textblink(GR_X+1, GR_Y+1, 79-(GR_X+1), false);
 	ASM_EI; ASM_HALT;
-	textblink(GR_X+1, GR_Y+1, 79-(GR_X+1), true);
+	textblink(GR_X+1, GR_Y+1, p-heap_top+1, true);
 
-	putlinexy(GR_X+1, GR_Y+1, 50, heap_top);
-	*(q+5) = '\0';
+	// Print speed line
+	putlinexy(GR_X+1, GR_Y+1, 60, heap_top);
+
+	// Print CPU speed in top panel
+	*++p = '\0';
 	if (*q == ' ') q++;
 	csprintf(heap_top, "%s MHz  ", q);
 	putstrxy(17,5, heap_top);
@@ -459,17 +419,17 @@ void setCustomInterrupt() __naked
 		ld bc,#128*2			;128 vectors, 1 byte extra for 256th
 		ldir					;Generate table
 
-		ld hl,#intRoutHere$		;Routine for IM 2
+		ld hl,#intRoutIM2		;Routine for IM 2
 		ld de,#intRoutStart		;Put routine here
-		ld bc,#intRoutEnd$-intRoutIM2$	;Length of the routine
+		ld bc,#intRoutEnd-intRoutIM2	;Length of the routine
 		ldir					;Copy the routine
 
-		ld a,#intVecHalfAd		;Use this as high address part
-		ld i,a					;Set high address part
 		ei
 		halt
 
 		di						;No interrupts during switch
+		ld a,#intVecHalfAd		;Use this as high address part
+		ld i,a					;Set high address part
 		im 2					;Switch to IM 2
 		ei						;Enable interrupts
 
@@ -486,47 +446,44 @@ void setCustomInterrupt() __naked
 		djnz loop1$
 /*
 		NTSC 60Hz		PAL 50Hz
-		253				212				Z80 3.58Mhz
+		253				212				Z80 3.58Mhz						Tides 3.58Mhz
+		220				184								OCM 4.10Mhz
+		202				169								OCM 4.48Mhz
+		183				153								OCM 4.90Mhz
 		169				141				Z80 tPANA 5.37Mhz
+		165				138								OCM 5.39Mhz
+		147				123								OCM 6.10Mhz
+		136				113												Tides 6.66Mhz
+		128				107								OCM 6.96Mhz
+		110				92								OCM 8.04Mhz
+		90				75												Tides 10.00Mhz
+		45				37												Tides 20.00Mhz
 		44				36				TurboR R800
 */
-		; OCM-PLD
-		; 254 -> 3.58 Mhz
-		; 169 -> 5.37 Mhz
-		; 221 -> 4.10 Mhz
-		; 202 -> 4.48 Mhz
-		; 184 -> 4.90 Mhz
-		; 165 -> 5.39 Mhz
-		; 147 -> 6.10 Mhz
-		; 129 -> 6.96 Mhz
-		; 110 -> 8.04 Mhz
-
 		di						;End test
 		im 1					;Switch back to IM 1
 		ei						;Now interrupts are permitted again
 		ret
 
-	intRoutHere$:				;Code is now here
-
-	intRoutIM2$:		;[144]
+	intRoutIM2:				;Code is now here
 		push hl					;Save registers that are modified
 		push af
 
-	cont$:
+	cont:
 		in  a,(0x99)			;Read S#0
-		bit 0, a				;Does INT originate from VDP?
-		jr  z,notFromVDP$		;No -> go to exit
+		bit 7, a				;Does INT originate from VDP?
+		jr  z,notFromVDP		;No -> go to exit
 
 		ld hl, (_im2_counter)	;Nr. of interrupts counter
 		inc hl					;Increase counter by one
 		ld (_im2_counter), hl
 
-	notFromVDP$:
+	notFromVDP:
 		pop af					;Restore modified registers
 		pop hl
 		ei						;Interrupts are permitted again
 		reti					;Return to main program
-	intRoutEnd$:				;For Length of routine code	
+	intRoutEnd:					;For Length of routine code	
 	__endasm;
 }
 
@@ -592,7 +549,7 @@ int main(char **argv, int argc) __sdcccall(0)
 
 	// Initialize screen 0[80]
 	textmode(BW80);
-	textattr(0x24f4);
+	textattr(0xa4f4);
 	setcursortype(NOCURSOR);
 	redefineCharPatterns();
 	varCLIKSW = 0;
@@ -614,7 +571,7 @@ cprintf("\x86 %u \x87\x80", im2_counter);
 			turboPanaEnabled = !turboPanaEnabled;
 			setTurboPana(turboPanaEnabled);
 		} else
-		// F2: Toggle TurboR CPU
+		// F2: Cycle TurboR CPU
 		if (!varNEWKEY_row6.f2 && varNEWKEY_row6.shift && turboRdetected) {
 			turboRmode++;
 			if (turboRmode > TR_R800_DRAM) turboRmode = TR_Z80;
@@ -622,12 +579,17 @@ cprintf("\x86 %u \x87\x80", im2_counter);
 			cpuType = detectCPUtype();
 			showCPUtype();
 		} else
-		// F4: Toggle Tides Speed
-		if (!varNEWKEY_row7.f4 && varNEWKEY_row6.shift) {
-			tidesSpeed++;
-			tidesSpeed &= 0xb00000011;
-			setTidesSpeed(tidesSpeed | TIDES_SLOTS357);
+		// F3: Cycle OCM Speed
+		if (!varNEWKEY_row6.f3 && varNEWKEY_row6.shift && ocmDetected) {
+			ocmSpeedIdx = ++ocmSpeedIdx % sizeof(ocmSmartCmd);
+			ocm_sendSmartCmd(ocmSmartCmd[ocmSpeedIdx]);
 		} else
+		// F4: Toggle Tides Speed
+//		if (!varNEWKEY_row7.f4 && varNEWKEY_row6.shift) {
+//			tidesSpeed++;
+//			tidesSpeed &= 0xb00000011;
+//			setTidesSpeed(tidesSpeed | TIDES_SLOTS357);
+//		} else
 		// F6: Toggle NTSC/PAL
 		if (!varNEWKEY_row6.f1 && !varNEWKEY_row6.shift) {
 			setNTSC(varRG9SAV.NT ? false : true);
@@ -658,10 +620,10 @@ void restoreScreen()
 		ld  a, (_originalSCRMOD)
 		or  a
 		jr  nz, .screen1
-;		ld  ix, #INITXT				; Restore SCREEN 0
+		ld  ix, #INITXT				; Restore SCREEN 0
 		jr  .bioscall
 	.screen1:
-;		ld  ix, #INIT32				; Restore SCREEN 1
+		ld  ix, #INIT32				; Restore SCREEN 1
 	.bioscall:
 		BIOSCALL
 		ld  ix, #INIFNK				; Restore function keys
