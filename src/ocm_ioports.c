@@ -52,7 +52,7 @@ bool ocm_sendSmartCmd(uint8_t cmd) __naked __z88dk_fastcall
 		call .detectExtIODevice
 
 		ld   l, a
-		jr   z, .odv_end				; Return L = 0:fail
+		jr   nz, .odv_end				; Return L = 0:fail
 										; L = 1:success
 
 		ld   a, b						; Restore Param cmd
