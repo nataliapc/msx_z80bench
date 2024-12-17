@@ -1,5 +1,7 @@
 # MSX Z80 Frequency Benchmark
 
+[[**Downloads page**](https://github.com/nataliapc/msx_z80bench/releases)]
+
 **Z80BENCH** program allows you to measure and manage your MSX CPU speed.
 
 It has been created with not only _Panasonic MSX_ with _TurboPana_ and _MSX TurboR_ machines in mind, but also _FPGA_ machines [_OCM/MSX++_](https://github.com/gnogni/ocm-pld-dev), and MSX based on boards and hardware developments like [_Tides-Rider_](https://genami.shop/blogs/news/requirements-to-assemble-a-tides-rider) and [_Taka-Nami_](https://genami.shop/blogs/news/knowing-the-taka-nami) that allow different CPU speeds.
