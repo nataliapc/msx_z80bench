@@ -8,6 +8,7 @@
 #include "conio.h"
 #include "utils.h"
 #include "ocm_ioports.h"
+#include "msx1_functions.h"
 #include "patterns.h"
 #include "msx_const.h"
 #include "z80bench.h"
@@ -25,24 +26,35 @@
 #define intRoutStart	0x8181		// Let interrupt routine start here
 #define intRoutHalfAd	0x81		// Address high and low
 
+uint8_t screenMode = BW80;
+uint16_t blinkBase = 0x0800;
+uint16_t patternsBase = 0x1000;
+void (*setCustomInterrupt_ptr)();
+void (*calculateMhz_ptr)();
+void (*drawCpuSpeed_ptr)();
+void (*drawPanel_ptr)();
+void (*showCPUtype_ptr)();
+void (*showVDPtype_ptr)();
+void (*textattr_ptr)(uint16_t attr) __z88dk_fastcall;
+void (*textblink_ptr)(uint8_t x, uint8_t y, uint16_t length, bool enabled);
 
 static uint8_t vdpFreq;
-static float calculatedFreq = 0;
-static uint16_t im2_counter = 0;
+float calculatedFreq = 0;
+uint16_t im2_counter = 0;
 
 #define MSX_1		0
 #define MSX_2		1
 #define MSX_2P		2
 #define MSX_TR		3
-static uint8_t msxVersionROM;
-static uint8_t machineBrand;
+uint8_t msxVersionROM;
+uint8_t machineBrand;
 
 #define CPU_Z80		0
 #define CPU_R800	1
 #define CPU_Z280	2
-static uint8_t cpuType = CPU_Z80;
+uint8_t cpuType = CPU_Z80;
 
-static uint8_t vdpType;
+uint8_t vdpType;
 
 static bool turboPanaDetected;
 static bool turboPanaEnabled = false;
@@ -67,6 +79,16 @@ static uint8_t originalBDRCLR;
 static uint8_t originalCLIKSW;
 
 
+void setCustomInterrupt_v1();
+void setCustomInterrupt_v2();
+void calculateMhz_v1();
+void calculateMhz_v2();
+void drawCpuSpeed();
+void drawPanel();
+void showCPUtype();
+void showVDPtype();
+
+
 // ========================================================
 static void checkPlatformSystem()
 {
@@ -80,7 +102,29 @@ static void checkPlatformSystem()
 	// Check MSX2 ROM or higher
 	msxVersionROM = getRomByte(MSXVER);
 	if (!msxVersionROM) {
-		die("This don't works on MSX1!");
+		screenMode = BW40;
+		blinkBase = 0x4000;
+		patternsBase = 0x0800;
+		setCustomInterrupt_ptr = setCustomInterrupt_v1;
+		calculateMhz_ptr = calculateMhz_v1;
+		drawCpuSpeed_ptr = msx1_drawCpuSpeed;
+		drawPanel_ptr = msx1_drawPanel;
+		showCPUtype_ptr = msx1_showCPUtype;
+		showVDPtype_ptr = msx1_showVDPtype;
+		textattr_ptr = msx1_textattr;
+		textblink_ptr = msx1_textblink;
+	} else {
+		screenMode = BW80;
+		blinkBase = 0x0800;
+		patternsBase = 0x1000;
+		setCustomInterrupt_ptr = setCustomInterrupt_v2;
+		calculateMhz_ptr = calculateMhz_v2;
+		drawCpuSpeed_ptr = drawCpuSpeed;
+		drawPanel_ptr = drawPanel;
+		showCPUtype_ptr = showCPUtype;
+		showVDPtype_ptr = showVDPtype;
+		textattr_ptr = textattr;
+		textblink_ptr = textblink;
 	}
 
 	// Check MSX-DOS 2 or higher
@@ -147,7 +191,7 @@ void putstrxy(uint8_t x, uint8_t y, char *str)
 
 inline void redefineCharPatterns()
 {
-	_copyRAMtoVRAM((uint16_t)charPatters, 0x1000+0x80*8, 19*8);
+	_copyRAMtoVRAM((uint16_t)charPatters, patternsBase+0x80*8, 19*8);
 }
 
 void click() __naked
@@ -226,7 +270,7 @@ void waitVBLANK() __naked
 char *formatFloat(float value, char *txt, int8_t decimals)
 {
 	uint8_t digit;
-	uint16_t decenes = 1000;
+	uint16_t decenes = 10000;
 	char *p = txt;
 
 	while (value < decenes) {
@@ -269,9 +313,8 @@ void showCPUtype()
 
 void showVDPtype()
 {
-	sprintf(heap_top, "%s %s", vdpTypeStr[vdpType], vdpModesStr[varRG9SAV.NT]);
+	csprintf(heap_top, "%s %s", vdpTypeStr[vdpType], vdpModesStr[varRG9SAV.NT]);
 	putstrxy(17,6, heap_top);
-
 }
 
 #define GR_X	17
@@ -308,7 +351,7 @@ void drawPanel()
 	drawFrame(3,2, 39,7);
 	putstrxy(5,3, "Machine   :");
 	putstrxy(5,4, "CPU Type  :");
-	putstrxy(5,5, "CPU Speed :");
+	putstrxy(5,5, "CPU Speed : --");
 	putstrxy(5,6, "VDP Type  :");
 	textblink(16,3, 23, true);
 	textblink(16,4, 23, true);
@@ -326,9 +369,6 @@ void drawPanel()
 	// CPU type
 	showCPUtype();
 
-	// Frequency
-	putlinexy(17,5, 2, "--");
-
 	// Video mode
 	showVDPtype();
 
@@ -336,8 +376,8 @@ void drawPanel()
 	drawFrame(40, 2, 78, 7);
 	putstrxy(42, 3, "This computer performs ---% of an");
 	putstrxy(42, 4, "original MSX Z80.");
-	putstrxy(42, 5, "Clock measurement is approximate.");
-	putstrxy(42, 6, "May vary with external RAM mappers.");
+	putstrxy(42, 5, info1Str);
+	putstrxy(42, 6, info2Str);
 	textblink(65,3, 5, true);
 
 	// Graph
@@ -397,7 +437,7 @@ void drawPanel()
 void drawCpuSpeed()
 {
 	float speed = calculatedFreq + 0.001f;
-	uint16_t speedUnits = (uint8_t)(speed * 2.f);
+	uint16_t speedUnits = (uint16_t)(speed * 2.f);
 	float speedDecimal = calculatedFreq - speedUnits * 0.5f;
 	char *q = heap_top, *p;
 
@@ -512,10 +552,11 @@ void setCustomInterrupt_v1() __naked
 
 void calculateMhz_v1()
 {
-	vdpFreq = varRG9SAV.NT ? 50 : 60;
-	float offset = varRG9SAV.NT ? 0.0f : 0.005f;
+	bool ntscpal = getRomByte(LOCALE)>>7;
+	vdpFreq = ntscpal ? 50 : 60;
+	float offset = ntscpal ? 0.0252080667f : -0.0213068182f;
 
-	float secReference = varRG9SAV.NT ? 4.2441f : 4.221666667f;//253.3f / 60.f --- tests/sec in a MSX at VDP60Hz
+	float secReference = ntscpal ? 4.210140845f : 4.241765873f;
 	float seconds = (float)im2_counter / (float)vdpFreq;
 	calculatedFreq = (secReference * MSX_CLOCK / seconds) + offset;
 }
@@ -738,23 +779,22 @@ int main(char **argv, int argc) __sdcccall(0)
 	checkPlatformSystem();
 
 	// Initialize screen 0[80]
-	textmode(BW80);
-	textattr(0xa4f4);
+	textmode(screenMode);
+	textattr_ptr(0xa4f4);
 	setcursortype(NOCURSOR);
 	memset((char*)FNKSTR, 0, 160);			// Redefine Function Keys to empty strings
 	redefineCharPatterns();
 	varCLIKSW = 0;
 
 	// Initialize header & panel
-	drawPanel();
+	drawPanel_ptr();
 
-//im2_counter = 3;
+//im2_counter = 220;
 	do {
-		setCustomInterrupt_v2();
-		calculateMhz_v2();
-		drawCpuSpeed();
+		setCustomInterrupt_ptr();
+		calculateMhz_ptr();
+		drawCpuSpeed_ptr();
 		click();
-
 //getch();
 //im2_counter--;
 
@@ -769,7 +809,7 @@ int main(char **argv, int argc) __sdcccall(0)
 			if (turboRmode > TR_R800_DRAM) turboRmode = TR_Z80;
 			setCpuTurboR(turboRmode);
 			cpuType = detectCPUtype();
-			showCPUtype();
+			showCPUtype_ptr();
 		} else
 		// F3: Cycle OCM Speed
 		if (!varNEWKEY_row6.f3 && varNEWKEY_row6.shift && ocmDetected) {
@@ -783,9 +823,9 @@ int main(char **argv, int argc) __sdcccall(0)
 //			setTidesSpeed(tidesSpeed | TIDES_SLOTS357);
 //		} else
 		// F6: Toggle NTSC/PAL
-		if (!varNEWKEY_row6.f1 && !varNEWKEY_row6.shift) {
+		if (!varNEWKEY_row6.f1 && !varNEWKEY_row6.shift && msxVersionROM) {
 			setNTSC(varRG9SAV.NT ? false : true);
-			showVDPtype();
+			showVDPtype_ptr();
 		}
 		varPUTPNT = varGETPNT;
 	} while (varNEWKEY_row7.esc);

@@ -3,39 +3,39 @@
 
 // ========================================================
 
-static const char titleStr[] = "\x86 Z80 Frequency Benchmark v1.2 (2024) \x87";
-static const char authorStr[] = "\x86 NataliaPC \x87";
+const char titleStr[] = "\x86 Z80 Frequency Benchmark v1.3b \x87";
+const char authorStr[] = "\x86 NataliaPC \x87";
 
-static const char axisXLabelsStr[6][6] = {
+static const char *axisXLabelsStr[] = {
 	" 5MHz", "10MHz", "15MHz", "20MHz", "25MHz", "  30"
 };
-static const char axisYLabelsStr[8][14] = {
+static const char *axisYLabelsStr[] = {
 	"CPU speed", "(MHz)", "", "MSX standard", "(3.579MHz)", "", "MSX2+ tPANA", "(5.369MHz)"
 };
 
-static const char cpuTypesStr[3][12] = {
+const char *cpuTypesStr[] = {
 	"Z80        ", "R800", "Z280       "
 };
 
-static const char vdpTypeStr[3][9] = {
+const char *vdpTypeStr[] = {
 	"TMS9918A", "V9938", "V9958"
 };
 
-static const char turboRmodeStr[3][5] = {
+static const char *turboRmodeStr[] = {
 	"", "ROM", "DRAM"
 };
 
-static const char vdpModesStr[2][12] = {
+const char *vdpModesStr[] = {
 	"(NTSC 60Hz)", "(PAL 50Hz) "
 };
 
-static const char *machineTypeStr[] = {
+const char *machineTypeStr[] = {
 	// [0-3] ROM Byte $2D
 	"MSX1", "MSX2", "MSX2+", "MSX TurboR"
 };
 
 #define BRAND_OCMPLD	27
-static const char *machineBrandStr[] = {
+const char *machineBrandStr[] = {
 	// [0] Unknown
 	"",
 	// [1-26] I/O port $40
@@ -47,6 +47,9 @@ static const char *machineBrandStr[] = {
 };
 
 static const char *speedLineStr = "         \x92         \x92         \x92         \x92         \x92         \x92";
+const char *info1Str = "Clock measurement is approximate.";
+const char *info2Str = "May vary with external RAM mappers.";
+
 
 static const float speedDecLimits[] = { .07f, .14f, .21f, .28f, .35f, .42f, .5f };
 
