@@ -153,17 +153,15 @@ inline void redefineCharPatterns()
 void click() __naked
 {
 	__asm
-		and  #0x7F
-		out  (0xAA),a
+		ld   a, #(7<<1)|1
+		out  (0xAB), a
 
-		ld   b,#30
+		ld   b,#10
 	click_loop:
-		nop
 		djnz click_loop
 
-		in   a,(0xAA)
-		or   #0x80
-		out  (0xAA),a
+		and  #0b11111110
+		out  (0xAB),a
 		ret
 	__endasm;
 }
