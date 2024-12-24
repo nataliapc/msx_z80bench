@@ -214,6 +214,46 @@ void setNTSC(bool enabled) __naked __sdcccall(1)
 	__endasm;
 }
 
+void waitVBLANK() __naked
+{
+	__asm
+		ei
+		halt
+		ret
+	__endasm;
+}
+
+char *formatFloat(float value, char *txt, int8_t decimals)
+{
+	uint8_t digit;
+	uint16_t decenes = 1000;
+	char *p = txt;
+
+	while (value < decenes) {
+		decenes /= 10;
+	}
+
+	while (decenes) {
+		digit = (uint8_t)floorf(value / decenes);
+		*p++ = '0' + digit;
+		value -= digit * decenes;
+		decenes /= 10;
+	}
+
+	if (txt == p) *p++ = '0';
+	if (decimals) *p++ = '.';
+
+	while (decimals) {
+		value *= 10.f;
+		digit = (uint8_t)floorf(value);
+		*p++ = '0' + digit;
+		value -= digit;
+		decimals--;
+	}
+	*p = '\0';
+
+	return p;
+}
 
 // ========================================================
 
@@ -243,7 +283,7 @@ void drawPanel()
 {
 	uint16_t i, j;
 
-	ASM_EI; ASM_HALT
+	waitVBLANK();
 
 	// Big frame
 	_fillVRAM(0, 80, '\x80');
@@ -294,10 +334,11 @@ void drawPanel()
 
 	// Info frame
 	drawFrame(40, 2, 78, 7);
-	putstrxy(42, 3, "This computer performs like a Z80");
-	putstrxy(42, 4, "at (CPU Speed) MHz.");
+	putstrxy(42, 3, "This computer performs ---% of an");
+	putstrxy(42, 4, "original MSX Z80.");
 	putstrxy(42, 5, "Clock measurement is approximate.");
 	putstrxy(42, 6, "May vary with external RAM mappers.");
+	textblink(65,3, 5, true);
 
 	// Graph
 	chlinexy(GR_X,GR_Y+GR_H, 58);
@@ -356,54 +397,48 @@ void drawPanel()
 void drawCpuSpeed()
 {
 	float speed = calculatedFreq + 0.001f;
-	uint16_t digit, speedUnits = (uint8_t)(speed * 2.f);
+	uint16_t speedUnits = (uint8_t)(speed * 2.f);
 	float speedDecimal = calculatedFreq - speedUnits * 0.5f;
-	char *p, *q;
+	char *q = heap_top, *p;
+
+	// Draw counter in top-right border
+	gotoxy(57,1);
+	cprintf("\x86 %u \x87\x80\x80", im2_counter);
+
+	// Draw % of CPU speed
+	p = formatFloat(calculatedFreq * 100.f / MSX_CLOCK , heap_top, 0);
+	*p++ = '%';
+	*p = '\0';
+	putstrxy(65, 3, heap_top);
 
 	// Prepare line buffer
-	memcpy(heap_top, speedLineStr, 60);
-	memset(heap_top, '\x8e', speedUnits);
+	memcpy(q, speedLineStr, 60);
+	memset(q, '\x8e', speedUnits);
+	q += speedUnits;
 	for (uint8_t i=0; i<sizeof(speedDecLimits); i++) {
 		if (speedDecimal <= speedDecLimits[i]) {
-			*(heap_top+speedUnits) = '\x88'+i;
+			*q = '\x88'+i;
 			break;
 		}
 	}
+	*++q = ' ';
+	q++;
 
 	// Print speed numbers
-	q = p = heap_top + speedUnits + 2;
-	*p = ' ';
-
-	digit = (uint8_t)floorf(speed);
-	if (digit>=10) 
-		*p++ = '0' + digit/10;
-	*p = '0' + digit%10;
-	speed -= digit;
-
-	*++p = '.';
-	speed *= 10.f;
-	digit = (uint8_t)floorf(speed);
-	*++p = '0' + digit;
-	speed -= digit;
-
-	speed *= 10.f;
-	digit = (uint8_t)floorf(speed);
-	*++p = '0' + digit;
+	p = formatFloat(speed, q, 2);
 
 	// Dump to screen
-	ASM_EI; ASM_HALT;
+	waitVBLANK();
 	textblink(GR_X+1, GR_Y+1, 79-(GR_X+1), false);
-	ASM_EI; ASM_HALT;
-	textblink(GR_X+1, GR_Y+1, p-heap_top+1, true);
+	waitVBLANK();
+	textblink(GR_X+1, GR_Y+1, (p-heap_top < 60 ? p-heap_top+1 : 60), true);
 
 	// Print speed line
 	putlinexy(GR_X+1, GR_Y+1, 60, heap_top);
 
 	// Print CPU speed in top panel
-	*++p = '\0';
-	if (*q == ' ') q++;
-	csprintf(heap_top, "%s MHz  ", q);
-	putstrxy(17,5, heap_top);
+	memcpy(p, " MHz   ", 8);
+	putstrxy(17,5, q);
 }
 
 // ========================================================
@@ -658,28 +693,26 @@ void calculateMhz_v2()
 
 
 // ========================================================
-void commandLine()
+void commandLine(char type)
 {
-	setCustomInterrupt();
-	calculateMhz();
+	char *txt = malloc(10);
 
-	char freq[] = " 0.00";
-	uint8_t funits = (uint16_t)calculatedFreq,
-			fdecimal = (uint16_t)((calculatedFreq - funits) * 100.f);
+	if (type == '1') {
+		setCustomInterrupt_v1();
+		calculateMhz_v1();
+	} else if (type == '2') {
+		setCustomInterrupt_v2();
+		calculateMhz_v2();
+	} else {
+		die("z80bench [1|2]\n\n  1: Debug TestLoop V1\n  2: Debug TestLoop V2\n");
+	}
 
-	if (funits >= 10) {
-		freq[0] = '0' + (funits / 10);
-	}
-	freq[1] = '0' + (funits % 10);
-	if (fdecimal >= 10) {
-		freq[3] = '0' + (fdecimal / 10);
-	}
-	freq[4] = '0' + (fdecimal % 10);
+	formatFloat(calculatedFreq, txt, 2);
 
 	cprintf("Counter  : %u\n"
-			"Frequency: %s\n", 
+			"Frequency: %s MHz\n", 
 			im2_counter, 
-			freq);
+			txt);
 }
 
 // ========================================================
@@ -688,7 +721,7 @@ int main(char **argv, int argc) __sdcccall(0)
 	argv; argc;
 
 	if (argc != 0) {
-		commandLine();
+		commandLine(argv[0][0]);
 		return 0;
 	}	
 
@@ -708,20 +741,22 @@ int main(char **argv, int argc) __sdcccall(0)
 	textmode(BW80);
 	textattr(0xa4f4);
 	setcursortype(NOCURSOR);
+	memset((char*)FNKSTR, 0, 160);			// Redefine Function Keys to empty strings
 	redefineCharPatterns();
 	varCLIKSW = 0;
 
 	// Initialize header & panel
 	drawPanel();
 
+//im2_counter = 3;
 	do {
-		setCustomInterrupt();
-		calculateMhz();
+		setCustomInterrupt_v2();
+		calculateMhz_v2();
 		drawCpuSpeed();
 		click();
 
-gotoxy(58,1);
-cprintf("\x86 %u \x87\x80", im2_counter);
+//getch();
+//im2_counter--;
 
 		// F1: Toggle tPANA speed
 		if (!varNEWKEY_row6.f1 && varNEWKEY_row6.shift && turboPanaDetected) {
