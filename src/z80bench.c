@@ -745,8 +745,9 @@ void commandLine(char type)
 {
 	char *txt = malloc(10);
 
-	*((char*)&titleStr[32]) = '\n';
-	cputs(&titleStr[2]);
+	*((char*)&titleStr[31]) = '\0';
+	*((char*)&authorStr[11]) = '\0';
+	cprintf("%s (by %s)\n", &titleStr[2], &authorStr[2]);
 
 	if (type == '1') {
 		setCustomInterrupt_ptr = setCustomInterrupt_v1;
