@@ -443,7 +443,7 @@ void drawPanel()
 
 void drawCpuSpeed()
 {
-	float speed = calculatedFreq;
+	float speed = calculatedFreq + 0.001f;
 	uint16_t speedUnits = (uint16_t)(speed * 2.f);
 	float speedDecimal = calculatedFreq - speedUnits * 0.5f;
 	char *q = heap_top, *p;
@@ -736,7 +736,7 @@ void calculateMhz_v2()
 
 	float secReference = isNTSC ? 12.668717949f : 12.721658986f;	// im2_counter/vdpFreq for 3.58 MHz
 	float seconds = (float)im2_counter / (float)vdpFreq;			// im2_counter/vdpFreq for current CPU speed
-	calculatedFreq = (secReference * MSX_CLOCK / seconds) + offset + 0.001f;
+	calculatedFreq = (secReference * MSX_CLOCK / seconds) + offset;
 }
 
 
@@ -767,7 +767,7 @@ void commandLine(char type)
 	for (int16_t i=im2+2; i>=im2-2; i--) {
 		im2_counter = i;
 		calculateMhz_ptr();
-		formatFloat(calculatedFreq, txt, 2);
+		formatFloat(calculatedFreq + 0.001f, txt, 2);
 		cprintf("%s %u: %s MHz\n", i==im2?"->":"  ", i, txt);
 	}
 }

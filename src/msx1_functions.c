@@ -127,7 +127,7 @@ void msx1_drawPanel()
 
 void msx1_drawCpuSpeed()
 {
-	float speed = calculatedFreq;
+	float speed = calculatedFreq + 0.001f;
 	uint16_t speedUnits = (uint16_t)speed;
 	float speedDecimal = calculatedFreq - speedUnits;
 	char *q = heap_top, *p;
