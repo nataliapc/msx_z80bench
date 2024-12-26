@@ -46,7 +46,7 @@ WRFLAGS = --disable-warning 196 --disable-warning 84
 CCFLAGS = --code-loc 0x0180 --data-loc 0 -mz80 --no-std-crt0 --out-fmt-ihx $(OPFLAGS) $(WRFLAGS) $(DEFINES) $(DEBUG)
 
 LIBS = $(LIBDIR)/conio.lib $(LIBDIR)/dos.lib $(LIBDIR)/utils.lib
-SRC = heap.c ocm_ioports.c
+SRC = heap.c msx1_functions.c ocm_ioports.c
 PROG = z80bench.com
 
 all: $(PROG) $(LIBS)
@@ -97,7 +97,7 @@ $(PROG): $(CRT) $(LIBS) $(addprefix $(OBJDIR)/,$(subst .c,.c.rel,$(SRC)))
 	@echo "$(COL_YELLOW)######## Compiling $@$(COL_RESET)"
 	@$(CC) $(CCFLAGS) -I$(INCDIR) -L$(LIBDIR) $^ $(SRCDIR)/$(subst .com,.c,$@) -o $(OBJDIR)/$(subst .com,.ihx,$@) ;
 	@$(HEX2BIN) -e com $(OBJDIR)/$(subst .com,.ihx,$@)
-	@mv $(OBJDIR)/$(PROG) $(DSKDIR)/$(PROG)
+	@cp $(OBJDIR)/$(PROG) $(DSKDIR)/$(PROG)
 
 
 ###################################################################################################

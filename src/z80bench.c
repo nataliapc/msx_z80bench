@@ -55,6 +55,7 @@ uint8_t machineBrand;
 uint8_t cpuType = CPU_Z80;
 
 uint8_t vdpType;
+bool isNTSC;
 
 static bool turboPanaDetected;
 static bool turboPanaEnabled = false;
@@ -87,6 +88,7 @@ void drawCpuSpeed();
 void drawPanel();
 void showCPUtype();
 void showVDPtype();
+bool detectNTSC();
 
 
 // ========================================================
@@ -127,13 +129,6 @@ static void checkPlatformSystem()
 		textblink_ptr = textblink;
 	}
 
-	// Check MSX-DOS 2 or higher
-	if (dosVersion() < VER_MSXDOS1x) {
-		die("MSX-DOS 2.x or higher required!");
-	}
-	// Set abort exit routine
-	dos2_setAbortRoutine((void*)abortRoutine);
-
 	// Check CPU type
 	cpuType = detectCPUtype();
 
@@ -151,6 +146,9 @@ static void checkPlatformSystem()
 
 	// VDP type
 	vdpType = detectVDP();
+
+	// NTSC/PAL
+	isNTSC = detectNTSC();
 }
 
 uint8_t detectCPUtype()
@@ -176,6 +174,14 @@ uint8_t detectMachineBrand()
 	}
 	outportb(0x40, port40);
 	return result;
+}
+
+bool detectNTSC()
+{
+	return !(msxVersionROM ?
+		varRG9SAV.NT :					// for MSX2 or higher
+		getRomByte(LOCALE) >> 7			// for MSX1
+	);
 }
 
 void abortRoutine()
@@ -245,6 +251,7 @@ void setNTSC(bool enabled) __naked __sdcccall(1)
 	enabled;
 	__asm
 		and  #1
+		xor  #1
 		add  a
 		ld   l, a
 		ld   a, (RG9SAV)
@@ -313,7 +320,7 @@ void showCPUtype()
 
 void showVDPtype()
 {
-	csprintf(heap_top, "%s %s", vdpTypeStr[vdpType], vdpModesStr[varRG9SAV.NT]);
+	csprintf(heap_top, "%s %s", vdpTypeStr[vdpType], vdpModesStr[detectNTSC()]);
 	putstrxy(17,6, heap_top);
 }
 
@@ -436,7 +443,7 @@ void drawPanel()
 
 void drawCpuSpeed()
 {
-	float speed = calculatedFreq + 0.001f;
+	float speed = calculatedFreq;
 	uint16_t speedUnits = (uint16_t)(speed * 2.f);
 	float speedDecimal = calculatedFreq - speedUnits * 0.5f;
 	char *q = heap_top, *p;
@@ -552,13 +559,13 @@ void setCustomInterrupt_v1() __naked
 
 void calculateMhz_v1()
 {
-	bool ntscpal = getRomByte(LOCALE)>>7;
-	vdpFreq = ntscpal ? 50 : 60;
-	float offset = ntscpal ? 0.0252080667f : -0.0213068182f;
+	isNTSC = detectNTSC();
+	vdpFreq = isNTSC ? 60 : 50;
+	float offset = isNTSC ? -0.0213068182f : 0.0252080667f;	// NTSC / PAL
 
-	float secReference = ntscpal ? 4.210140845f : 4.241765873f;
-	float seconds = (float)im2_counter / (float)vdpFreq;
-	calculatedFreq = (secReference * MSX_CLOCK / seconds) + offset;
+	float secReference = isNTSC ? 4.241765873f : 4.210140845f;		// im2_counter/vdpFreq for 3.58 MHz
+	float seconds = (float)im2_counter / (float)vdpFreq;			// im2_counter/vdpFreq for current CPU speed
+	calculatedFreq = (secReference * MSX_CLOCK / seconds) + offset + 0.001f;
 }
 
 
@@ -723,13 +730,13 @@ void setCustomInterrupt_v2() __naked
 
 void calculateMhz_v2()
 {
-	vdpFreq = varRG9SAV.NT ? 50 : 60;
-	float offset = varRG9SAV.NT ? 0.0494868036f : 0.05506993f;	// PAL / NTSC
+	isNTSC = detectNTSC();
+	vdpFreq = isNTSC ? 60 : 50;
+	float offset = isNTSC ? 0.05506993f : 0.0494868036f;	// NTSC / PAL
 
-	// PAL / NTSC
-	float secReference = varRG9SAV.NT ? 12.721658986f : 12.668717949f;	// 510.f/60.f
-	float seconds = (float)im2_counter / (float)vdpFreq;
-	calculatedFreq = (secReference * MSX_CLOCK / seconds) + offset;
+	float secReference = isNTSC ? 12.668717949f : 12.721658986f;	// im2_counter/vdpFreq for 3.58 MHz
+	float seconds = (float)im2_counter / (float)vdpFreq;			// im2_counter/vdpFreq for current CPU speed
+	calculatedFreq = (secReference * MSX_CLOCK / seconds) + offset + 0.001f;
 }
 
 
@@ -738,22 +745,31 @@ void commandLine(char type)
 {
 	char *txt = malloc(10);
 
+	*((char*)&titleStr[32]) = '\n';
+	cputs(&titleStr[2]);
+
 	if (type == '1') {
-		setCustomInterrupt_v1();
-		calculateMhz_v1();
-	} else if (type == '2') {
-		setCustomInterrupt_v2();
-		calculateMhz_v2();
+		setCustomInterrupt_ptr = setCustomInterrupt_v1;
+		calculateMhz_ptr = calculateMhz_v1;
+	} else if (type == '2' && msxVersionROM) {
+		setCustomInterrupt_ptr = setCustomInterrupt_v2;
+		calculateMhz_ptr = calculateMhz_v2;
 	} else {
-		die("z80bench [1|2]\n\n  1: Debug TestLoop V1\n  2: Debug TestLoop V2\n");
+		die("\nz80bench [1|2]\n\n  1: Debug TestLoop V1\n  2: Debug TestLoop V2 (not for MSX1)\n");
 	}
 
-	formatFloat(calculatedFreq, txt, 2);
+	cprintf("Testing TestLoop V%c %s:\n", type, vdpModesStr[isNTSC]);
 
-	cprintf("Counter  : %u\n"
-			"Frequency: %s MHz\n", 
-			im2_counter, 
-			txt);
+	setCustomInterrupt_ptr();
+	calculateMhz_ptr();
+
+	uint16_t im2 = im2_counter;
+	for (int16_t i=im2+2; i>=im2-2; i--) {
+		im2_counter = i;
+		calculateMhz_ptr();
+		formatFloat(calculatedFreq, txt, 2);
+		cprintf("%s %u: %s MHz\n", i==im2?"->":"  ", i, txt);
+	}
 }
 
 // ========================================================
@@ -761,11 +777,19 @@ int main(char **argv, int argc) __sdcccall(0)
 {
 	argv; argc;
 
+	//Platform system checks
+	checkPlatformSystem();
+
+	// Command line
 	if (argc != 0) {
 		commandLine(argv[0][0]);
 		return 0;
 	}	
 
+	// Set abort exit routine
+	dos2_setAbortRoutine((void*)abortRoutine);
+
+	// Save current kanji mode
 	kanjiMode = (detectKanjiDriver() ? getKanjiMode() : 0);
 	if (kanjiMode) {
 		setKanjiMode(0);
@@ -774,9 +798,6 @@ int main(char **argv, int argc) __sdcccall(0)
 	// A way to avoid using low memory when using BIOS calls from DOS
 	if (heap_top < (void*)0xa000)
 		heap_top = (void*)0xa000;
-
-	//Platform system checks
-	checkPlatformSystem();
 
 	// Initialize screen 0[80]
 	textmode(screenMode);
@@ -824,7 +845,7 @@ int main(char **argv, int argc) __sdcccall(0)
 //		} else
 		// F6: Toggle NTSC/PAL
 		if (!varNEWKEY_row6.f1 && !varNEWKEY_row6.shift && msxVersionROM) {
-			setNTSC(varRG9SAV.NT ? false : true);
+			setNTSC(!isNTSC);
 			showVDPtype_ptr();
 		}
 		varPUTPNT = varGETPNT;

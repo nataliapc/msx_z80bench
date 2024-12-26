@@ -12,10 +12,11 @@
 // ========================================================
 extern uint16_t im2_counter;
 extern float calculatedFreq;
-extern uint8_t cpuType;
-extern uint8_t vdpType;
 extern uint8_t msxVersionROM;
 extern uint8_t machineBrand;
+extern uint8_t cpuType;
+extern uint8_t vdpType;
+extern bool isNTSC;
 extern const char titleStr[];
 extern const char authorStr[];
 extern const char *machineTypeStr[];
@@ -25,7 +26,6 @@ extern const char *vdpTypeStr[];
 extern const char *vdpModesStr[];
 extern const char *info1Str;
 extern const char *info2Str;
-uint8_t vdpMode;
 
 static const char *axisXLabelsStr[] = {
 	"  5", " 10", " 15", " 20", " 25", "30"
@@ -51,7 +51,7 @@ void msx1_showCPUtype()
 
 void msx1_showVDPtype()
 {
-	csprintf(heap_top, "%s  %s", vdpTypeStr[vdpType], vdpModesStr[vdpMode]);
+	csprintf(heap_top, "%s  %s", vdpTypeStr[vdpType], vdpModesStr[isNTSC]);
 	putstrxy(15,6, heap_top);
 }
 
@@ -95,7 +95,6 @@ void msx1_drawPanel()
 	msx1_showCPUtype();
 
 	// Video mode
-	vdpMode = getRomByte(LOCALE) >> 7;
 	msx1_showVDPtype();
 
 	// Graph
@@ -128,7 +127,7 @@ void msx1_drawPanel()
 
 void msx1_drawCpuSpeed()
 {
-	float speed = calculatedFreq + 0.001f;
+	float speed = calculatedFreq;
 	uint16_t speedUnits = (uint16_t)speed;
 	float speedDecimal = calculatedFreq - speedUnits;
 	char *q = heap_top, *p;

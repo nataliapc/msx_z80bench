@@ -26,7 +26,7 @@ static const char *turboRmodeStr[] = {
 };
 
 const char *vdpModesStr[] = {
-	"(NTSC 60Hz)", "(PAL 50Hz) "
+	"(PAL 50Hz) ", "(NTSC 60Hz)"
 };
 
 const char *machineTypeStr[] = {
