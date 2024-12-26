@@ -19,6 +19,9 @@ extern uint8_t vdpType;
 extern bool isNTSC;
 extern const char titleStr[];
 extern const char authorStr[];
+extern const char infoMachineStr[];
+extern const char infoCpuTypeStr[];
+extern const char infoVdpTypeStr[];
 extern const char *machineTypeStr[];
 extern const char *machineBrandStr[];
 extern const char *cpuTypesStr[];
@@ -78,10 +81,10 @@ void msx1_drawPanel()
 
 	// Info
 	drawFrame(1,2, 40,7);
-	putstrxy(3,3, "Machine  :");
-	putstrxy(3,4, "CPU Type :");
-	putstrxy(3,5, "CPU Speed:  --         ---%");
-	putstrxy(3,6, "VDP Type :");
+	putstrxy(3,3, infoVdpTypeStr);
+	putstrxy(3,4, infoCpuTypeStr);
+	putstrxy(3,5, "CPU Speed : --         ---%");
+	putstrxy(3,6, infoVdpTypeStr);
 
 	// Machine type
 	if (machineBrand == 0) {

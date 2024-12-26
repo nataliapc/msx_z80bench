@@ -5,6 +5,9 @@
 
 const char titleStr[] = "\x86 Z80 Frequency Benchmark v1.3 \x87";
 const char authorStr[] = "\x86 NataliaPC \x87";
+const char infoMachineStr[] = "Machine   : ";
+const char infoCpuTypeStr[] = "CPU Type  : ";
+const char infoVdpTypeStr[] = "VDP Type  : ";
 
 static const char *axisXLabelsStr[] = {
 	" 5MHz", "10MHz", "15MHz", "20MHz", "25MHz", "  30"

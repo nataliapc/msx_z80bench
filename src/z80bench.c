@@ -356,10 +356,10 @@ void drawPanel()
 
 	// Info
 	drawFrame(3,2, 39,7);
-	putstrxy(5,3, "Machine   :");
-	putstrxy(5,4, "CPU Type  :");
+	putstrxy(5,3, infoMachineStr);
+	putstrxy(5,4, infoCpuTypeStr);
 	putstrxy(5,5, "CPU Speed : --");
-	putstrxy(5,6, "VDP Type  :");
+	putstrxy(5,6, infoVdpTypeStr);
 	textblink(16,3, 23, true);
 	textblink(16,4, 23, true);
 	textblink(16,5, 23, true);
@@ -759,7 +759,27 @@ void commandLine(char type)
 		die("\nz80bench [1|2]\n\n  1: Debug TestLoop V1\n  2: Debug TestLoop V2 (not for MSX1)\n");
 	}
 
-	cprintf("Testing TestLoop V%c %s:\n", type, vdpModesStr[isNTSC]);
+	// Machine type
+	cputs(infoMachineStr);
+	if (machineBrand == 0) {
+		cprintf("%s\n", machineTypeStr[msxVersionROM]);
+	} else {
+		cprintf("%s (%s)\n", machineTypeStr[msxVersionROM], machineBrandStr[machineBrand]);
+	}
+	// CPU type
+	cputs(infoCpuTypeStr);
+	if (turboRmode) {
+		cprintf("%s (%s)", cpuTypesStr[cpuType], turboRmodeStr[turboRmode]);
+	} else {
+		cputs(cpuTypesStr[cpuType]);
+	}
+	putch('\n');
+	// Video mode
+	cputs(infoVdpTypeStr);
+	cprintf("%s %s\n", vdpTypeStr[vdpType], vdpModesStr[detectNTSC()]);
+	
+	// CPU speed
+	cprintf("Testing TestLoop V%c:\n", type);
 
 	setCustomInterrupt_ptr();
 	calculateMhz_ptr();
