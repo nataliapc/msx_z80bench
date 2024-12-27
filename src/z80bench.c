@@ -878,14 +878,13 @@ int main(char **argv, int argc) __sdcccall(0)
 void restoreScreen()
 {
 	// Clean & restore screen
-	textattr(0x00f4);
-	_fillVRAM(0x1b00, 240, 0);
-	clrscr();
 	varLINL40 = originalLINL40;
 	varFORCLR = originalFORCLR;
 	varBAKCLR = originalBAKCLR;
 	varBDRCLR = originalBDRCLR;
 	varCLIKSW = originalCLIKSW;
+	_fillVRAM(0x0800, 240, 0);
+	clrscr();
 
 	__asm
 		push ix
