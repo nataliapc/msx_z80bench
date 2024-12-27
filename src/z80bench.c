@@ -877,15 +877,22 @@ int main(char **argv, int argc) __sdcccall(0)
 
 void restoreScreen()
 {
-	// Clean & restore screen
+	// Clean & restore original screen parameters & colors
+	__asm
+		ld   ix, #DISSCR
+		BIOSCALL
+	__endasm;
+
+	textattr(0x00f4);				// Clear blink
+	_fillVRAM(0x0800, 240, 0);
+
 	varLINL40 = originalLINL40;
 	varFORCLR = originalFORCLR;
 	varBAKCLR = originalBAKCLR;
 	varBDRCLR = originalBDRCLR;
-	varCLIKSW = originalCLIKSW;
-	_fillVRAM(0x0800, 240, 0);
 	clrscr();
 
+	// Restore original screen mode
 	__asm
 		push ix
 		ld  a, (_originalSCRMOD)
@@ -907,5 +914,14 @@ void restoreScreen()
 		setKanjiMode(kanjiMode);
 	}
 
+	__asm
+		ld   ix, #CLSSCR
+		xor  a
+		BIOSCALL
+		ld   ix, #ENASCR
+		BIOSCALL
+	__endasm;
+
+	// Restore abort routine
 	dos2_setAbortRoutine(0x0000);
 }
