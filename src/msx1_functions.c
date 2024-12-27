@@ -119,8 +119,8 @@ void msx1_drawPanel()
 	}
 
 	// Draw fixed graphs
-	putstrxy(GR_X+1, GR_Y+4, "\x8e\x8e\x8e\x8c 3.58");
-	putstrxy(GR_X+1, GR_Y+7, "\x8e\x8e\x8e\x8e\x8e\x8a 5.37");
+	putstrxy(GR_X+1, GR_Y+4, "\x8e\x8e\x8e\x8c 3.57");
+	putstrxy(GR_X+1, GR_Y+7, "\x8e\x8e\x8e\x8e\x8e\x8a 5.36");
 
 	// Information
 	putstrxy(3,20, info1Str);
@@ -130,7 +130,7 @@ void msx1_drawPanel()
 
 void msx1_drawCpuSpeed()
 {
-	float speed = calculatedFreq + 0.001f;
+	float speed = calculatedFreq;
 	uint16_t speedUnits = (uint16_t)speed;
 	float speedDecimal = calculatedFreq - speedUnits;
 	char *q = heap_top, *p;
@@ -140,7 +140,7 @@ void msx1_drawCpuSpeed()
 	cprintf("\x86 %u \x87\x80\x80", im2_counter);
 
 	// Draw % of CPU speed
-	p = formatFloat(calculatedFreq * 100.f / MSX_CLOCK , heap_top, 0);
+	p = formatFloat(calculatedFreq * 100.f / MSX_CLOCK + 0.5f, heap_top, 0);
 	*p++ = '%';
 	*p++ = ' ';
 	*p = '\0';

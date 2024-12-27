@@ -3,7 +3,7 @@
 
 // ========================================================
 
-const char titleStr[] = "\x86 Z80 Frequency Benchmark v1.3 \x87";
+const char titleStr[] = "\x86 Z80 Frequency Benchmark v1.3.1 \x87";
 const char authorStr[] = "\x86 NataliaPC \x87";
 const char infoMachineStr[] = "Machine   : ";
 const char infoCpuTypeStr[] = "CPU Type  : ";

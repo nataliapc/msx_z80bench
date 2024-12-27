@@ -14,7 +14,7 @@
 #include "z80bench.h"
 
 
-#define MSX_CLOCK		3.579545455f	// MHz
+#define MSX_CLOCK		((float)3.579545f)	// MHz
 
 #define NTSC_LINES		525
 #define PAL_LINES		625
@@ -407,8 +407,8 @@ void drawPanel()
 	}
 
 	// Draw fixed graphs
-	putstrxy(GR_X+1, GR_Y+4, "\x8e\x8e\x8e\x8e\x8e\x8e\x8e\x89 3.58");
-	putstrxy(GR_X+1, GR_Y+7, "\x8e\x8e\x8e\x8e\x8e\x8e\x8e\x8e\x8e\x8e\x8d 5.37");
+	putstrxy(GR_X+1, GR_Y+4, "\x8e\x8e\x8e\x8e\x8e\x8e\x8e\x89 3.57");
+	putstrxy(GR_X+1, GR_Y+7, "\x8e\x8e\x8e\x8e\x8e\x8e\x8e\x8e\x8e\x8e\x8d 5.36");
 
 	// Change color of current CPU speed
 	textblink(GR_X+1, GR_Y+1, 79-(GR_X+1), true);
@@ -443,7 +443,7 @@ void drawPanel()
 
 void drawCpuSpeed()
 {
-	float speed = calculatedFreq + 0.001f;
+	float speed = calculatedFreq;
 	uint16_t speedUnits = (uint16_t)(speed * 2.f);
 	float speedDecimal = calculatedFreq - speedUnits * 0.5f;
 	char *q = heap_top, *p;
@@ -453,7 +453,7 @@ void drawCpuSpeed()
 	cprintf("\x86 %u \x87\x80\x80", im2_counter);
 
 	// Draw % of CPU speed
-	p = formatFloat(calculatedFreq * 100.f / MSX_CLOCK , heap_top, 0);
+	p = formatFloat(calculatedFreq * 100.f / MSX_CLOCK + 0.5f , heap_top, 0);
 	*p++ = '%';
 	*p = '\0';
 	putstrxy(65, 3, heap_top);
@@ -565,7 +565,7 @@ void calculateMhz_v1()
 
 	float secReference = isNTSC ? 4.241765873f : 4.210140845f;		// im2_counter/vdpFreq for 3.58 MHz
 	float seconds = (float)im2_counter / (float)vdpFreq;			// im2_counter/vdpFreq for current CPU speed
-	calculatedFreq = (secReference * MSX_CLOCK / seconds) + offset + 0.001f;
+	calculatedFreq = (secReference * MSX_CLOCK / seconds) + offset;
 }
 
 
@@ -731,12 +731,10 @@ void setCustomInterrupt_v2() __naked
 void calculateMhz_v2()
 {
 	isNTSC = detectNTSC();
-	vdpFreq = isNTSC ? 60 : 50;
-	float offset = isNTSC ? 0.05506993f : 0.0494868036f;	// NTSC / PAL
+	uint32_t reference = isNTSC ? 2711722080L : 2281597532L;	// constants for 3.58 MHz NTSC/PAL (fixed fp 10^6)
+	uint32_t offset = isNTSC ? 66953L : 36692L;					// offsets for NTSC/PAL (fixed fp 10^6)
 
-	float secReference = isNTSC ? 12.668717949f : 12.721658986f;	// im2_counter/vdpFreq for 3.58 MHz
-	float seconds = (float)im2_counter / (float)vdpFreq;			// im2_counter/vdpFreq for current CPU speed
-	calculatedFreq = (secReference * MSX_CLOCK / seconds) + offset;
+	calculatedFreq = (reference / im2_counter + offset) / 1000000.f;
 }
 
 
@@ -745,7 +743,7 @@ void commandLine(char type)
 {
 	char *txt = malloc(10);
 
-	*((char*)&titleStr[31]) = '\0';
+	*((char*)&titleStr[33]) = '\0';
 	*((char*)&authorStr[11]) = '\0';
 	cprintf("%s (by %s)\n", &titleStr[2], &authorStr[2]);
 
@@ -788,7 +786,7 @@ void commandLine(char type)
 	for (int16_t i=im2+2; i>=im2-2; i--) {
 		im2_counter = i;
 		calculateMhz_ptr();
-		formatFloat(calculatedFreq + 0.001f, txt, 2);
+		formatFloat(calculatedFreq, txt, 2);
 		cprintf("%s %u: %s MHz\n", i==im2?"->":"  ", i, txt);
 	}
 }
