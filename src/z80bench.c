@@ -232,10 +232,10 @@ void showVDPtype()
 #define GR_Y	8
 #define GR_H	9
 #define LABELSY_X 	GR_X-13
-#define LABELSY_Y 	GR_Y+1
+#define LABELSY_Y 	GR_Y
 void drawPanel()
 {
-	uint16_t i, j;
+	uint16_t i;
 
 	waitVBLANK();
 
@@ -300,13 +300,11 @@ void drawPanel()
 	for (i=1; i<7; i++) {
 		putlinexy(GR_X+i*10-9,GR_Y+GR_H, 10, "\x91\x90\x91\x90\x91\x90\x91\x90\x91\x8f");
 		putstrxy(GR_X-2+i*10,GR_Y+GR_H+1, axisXLabelsStr[i-1]);
-		for (j=GR_Y; j<GR_Y+GR_H; j++) {
-			putlinexy(GR_X+i*10,j, 1, "\x92");
-		}
 	}
 
 	// Labels Y
-	for (i=0; i<8; i++) {
+	for (i=0; i<9; i++) {
+		putlinexy(GR_X+1, LABELSY_Y+i, 60, speedLineStr);
 		putstrxy(LABELSY_X, LABELSY_Y+i, axisYLabelsStr[i]);
 	}
 
@@ -350,6 +348,7 @@ void drawCpuSpeed()
 	float speed = calculatedFreq;
 	uint16_t speedUnits = (uint16_t)(speed * 2.f);
 	float speedDecimal = calculatedFreq - speedUnits * 0.5f;
+	char *floatStr = malloc(10);
 	char *q = heap_top, *p;
 
 	// Draw counter in top-right border
@@ -376,20 +375,25 @@ void drawCpuSpeed()
 	q++;
 
 	// Print speed numbers
-	p = formatFloat(speed, q, 2);
+	p = formatFloat(speed, floatStr, 2);
+	uint8_t len = p-floatStr;
+	memcpy(q, floatStr, len);
 
 	// Dump to screen
+	len += q-heap_top;
 	waitVBLANK();
 	textblink(GR_X+1, GR_Y+1, 79-(GR_X+1), false);
 	waitVBLANK();
-	textblink(GR_X+1, GR_Y+1, (p-heap_top < 60 ? p-heap_top+1 : 60), true);
+	textblink(GR_X+1, GR_Y+1, (len < 60 ? len : 60), true);
 
 	// Print speed line
 	putlinexy(GR_X+1, GR_Y+1, 60, heap_top);
 
 	// Print CPU speed in top panel
 	memcpy(p, " MHz   ", 8);
-	putstrxy(17,5, q);
+	putstrxy(17,5, floatStr);
+
+	free(10);
 }
 
 // ========================================================

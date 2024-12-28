@@ -34,7 +34,7 @@ static const char *axisXLabelsStr[] = {
 	"  5", " 10", " 15", " 20", " 25", "30"
 };
 static const char *axisYLabelsStr[] = {
-	"CPU speed", "MSX std", "turboPANA"
+	"", "CPU speed", "", "", "MSX std", "", "", "turboPANA", ""
 };
 static const char *speedLineStr = "    \x92    \x92    \x92    \x92    \x92    \x92";
 static const float speedDecLimits[] = { .14f, .29f, .43f, .57f, .71f, .86f, 1.f };
@@ -61,10 +61,10 @@ void msx1_showVDPtype()
 #define GR_Y	8
 #define GR_H	9
 #define LABELSY_X 	1
-#define LABELSY_Y 	GR_Y+1
+#define LABELSY_Y 	GR_Y
 void msx1_drawPanel()
 {
-	uint8_t i, j;
+	uint8_t i;
 
 	waitVBLANK();
 
@@ -107,14 +107,12 @@ void msx1_drawPanel()
 	for (i=1; i<7; i++) {
 		putlinexy(GR_X+i*5-4,GR_Y+GR_H, 5, "\x91\x91\x91\x91\x8f");
 		putstrxy(GR_X-1+i*5,GR_Y+GR_H+1, axisXLabelsStr[i-1]);
-		for (j=GR_Y; j<GR_Y+GR_H; j++) {
-			putlinexy(GR_X+i*5,j, 1, "\x92");
-		}
 	}
 
 	// Labels Y
-	for (i=0; i<3; i++) {
-		putstrxy(LABELSY_X, LABELSY_Y+i*3, axisYLabelsStr[i]);
+	for (i=0; i<9; i++) {
+		putlinexy(GR_X+1, LABELSY_Y+i, 30, speedLineStr);
+		putstrxy(LABELSY_X, LABELSY_Y+i, axisYLabelsStr[i]);
 	}
 
 	// Draw fixed graphs
@@ -132,6 +130,7 @@ void msx1_drawCpuSpeed()
 	float speed = calculatedFreq;
 	uint16_t speedUnits = (uint16_t)speed;
 	float speedDecimal = calculatedFreq - speedUnits;
+	char *floatStr = malloc(10);
 	char *q = heap_top, *p;
 
 	// Draw counter in top-right border
@@ -159,14 +158,17 @@ void msx1_drawCpuSpeed()
 	q++;
 
 	// Print speed numbers
-	p = formatFloat(speed, q, 2);
+	p = formatFloat(speed, floatStr, 2);
+	memcpy(q, floatStr, p-floatStr);
 
 	// Print speed line
 	putlinexy(GR_X+1, GR_Y+1, 30, heap_top);
 
 	// Print CPU speed in top panel
 	memcpy(p, " MHz  ", 7);
-	putstrxy(15,5, q);
+	putstrxy(15,5, floatStr);
+
+	free(10);
 }
 
 void msx1_textattr(uint16_t attr) __naked __z88dk_fastcall

@@ -13,7 +13,7 @@ static const char *axisXLabelsStr[] = {
 	" 5MHz", "10MHz", "15MHz", "20MHz", "25MHz", "  30"
 };
 static const char *axisYLabelsStr[] = {
-	"CPU speed", "(MHz)", "", "MSX standard", "(3.579MHz)", "", "MSX2+ tPANA", "(5.369MHz)"
+	"", "CPU speed", "(MHz)", "", "MSX standard", "(3.579MHz)", "", "MSX2+ tPANA", "(5.369MHz)"
 };
 
 const char *cpuTypesStr[] = {
