@@ -13,12 +13,16 @@
 #include <stdbool.h>
 
 
+uint8_t getRomByte(uint16_t address) __sdcccall(1);
+void click();
 void die(const char *s, ...);
 void exit(void);
 
-uint8_t getRomByte(uint16_t address) __sdcccall(1);
 
 void basic_play(void *parameters) __sdcccall(1);
+
+
+char *formatFloat(float value, char *txt, int8_t decimals);
 
 
 #define MODE_ANK		0
@@ -35,6 +39,9 @@ bool detectR800() __sdcccall(0);
 bool detectZ280() __sdcccall(0);
 bool detectTurboPana() __z88dk_fastcall;
 bool setTurboPana(bool enabled) __sdcccall(1);
+bool detectTurboR() __z88dk_fastcall;
+void setCpuTurboR(uint8_t mode) __z88dk_fastcall;
+void setNTSC(bool enabled) __sdcccall(1);
 
 #define TIDES_3MHZ		0
 #define TIDES_6MHZ		1
@@ -42,5 +49,6 @@ bool setTurboPana(bool enabled) __sdcccall(1);
 #define TIDES_20MHZ		3
 #define TIDES_SLOTS357	4
 void setTidesSpeed(uint8_t speed) __z88dk_fastcall;
+
 
 #endif//__UTILS_H__

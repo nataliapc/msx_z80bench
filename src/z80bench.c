@@ -200,71 +200,6 @@ inline void redefineCharPatterns()
 	_copyRAMtoVRAM((uint16_t)charPatters, patternsBase+0x80*8, 19*8);
 }
 
-void click() __naked
-{
-	__asm
-		ld   a, #(7<<1)|1
-		out  (0xAB), a
-
-		ld   b,#10
-	click_loop:
-		djnz click_loop
-
-		and  #0b11111110
-		out  (0xAB),a
-		ret
-	__endasm;
-}
-
-bool detectTurboR() __naked __z88dk_fastcall
-{
-	__asm
-		ld   hl, #0x180			; CHGCPU
-		call _getRomByte
-		cp	 #0xC3				; Check if CHGCPU is available
-		ld   l, #0				; Return L = false
-		ret  nz
-		inc  l					; Return L = true
-		ret
-	__endasm;
-}
-
-void setCpuTurboR(uint8_t mode) __naked __z88dk_fastcall
-{
-	mode;
-	__asm
-		push hl
-		call _detectTurboR
-		xor  a
-		cp   l
-		pop  hl
-		ret  z
-		ld	 a, l				; Param L = mode
-		or   #0x80				; Update de CPU led
-		ld   ix, #0x180			; CHGCPU
-		JP_BIOSCALL
-	__endasm;
-}
-
-void setNTSC(bool enabled) __naked __sdcccall(1)
-{
-	enabled;
-	__asm
-		and  #1
-		xor  #1
-		add  a
-		ld   l, a
-		ld   a, (RG9SAV)
-		and  #0b11111101
-		or   l
-		ld   (RG9SAV), a
-		ld   b, a
-		ld   c, #0x09		; Register #09
-		ld   ix, #WRTVDP
-		JP_BIOSCALL
-	__endasm;
-}
-
 void waitVBLANK() __naked
 {
 	__asm
@@ -274,37 +209,6 @@ void waitVBLANK() __naked
 	__endasm;
 }
 
-char *formatFloat(float value, char *txt, int8_t decimals)
-{
-	uint8_t digit;
-	uint16_t decenes = 10000;
-	char *p = txt;
-
-	while (value < decenes) {
-		decenes /= 10;
-	}
-
-	while (decenes) {
-		digit = (uint8_t)floorf(value / decenes);
-		*p++ = '0' + digit;
-		value -= digit * decenes;
-		decenes /= 10;
-	}
-
-	if (txt == p) *p++ = '0';
-	if (decimals) *p++ = '.';
-
-	while (decimals) {
-		value *= 10.f;
-		digit = (uint8_t)floorf(value);
-		*p++ = '0' + digit;
-		value -= digit;
-		decimals--;
-	}
-	*p = '\0';
-
-	return p;
-}
 
 // ========================================================
 

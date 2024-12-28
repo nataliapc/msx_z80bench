@@ -42,7 +42,6 @@ static const float speedDecLimits[] = { .14f, .29f, .43f, .57f, .71f, .86f, 1.f 
 
 // ========================================================
 void waitVBLANK();
-char *formatFloat(float value, char *txt, int8_t decimals);
 void putstrxy(uint8_t x, uint8_t y, const char *str);
 
 

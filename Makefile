@@ -46,10 +46,13 @@ WRFLAGS = --disable-warning 196 --disable-warning 84
 CCFLAGS = --code-loc 0x0180 --data-loc 0 -mz80 --no-std-crt0 --out-fmt-ihx $(OPFLAGS) $(WRFLAGS) $(DEFINES) $(DEBUG)
 
 LIBS = $(LIBDIR)/conio.lib $(LIBDIR)/dos.lib $(LIBDIR)/utils.lib
-SRC = heap.c msx1_functions.c ocm_ioports.c
-PROG = z80bench.com
+SRC =	heap.c \
+		msx1_functions.c \
+		ocm_ioports.c
 
-all: $(PROG) $(LIBS)
+PROGRAM = z80bench.com
+
+all: $(OBJDIR)/$(PROGRAM) $(LIBS) release
 
 
 $(LIBDIR)/conio.lib: $(EXTERNALS)/sdcc_msxconio/src/* $(EXTERNALS)/sdcc_msxconio/include/* $(EXTERNALS)/sdcc_msxconio/Makefile
@@ -93,22 +96,23 @@ $(OBJDIR)/%.s.rel: $(SRCLIB)/%.s
 	@$(DIR_GUARD)
 	@$(AS) -go $@ $^ ;
 
-$(PROG): $(CRT) $(LIBS) $(addprefix $(OBJDIR)/,$(subst .c,.c.rel,$(SRC)))
+$(OBJDIR)/$(PROGRAM): $(CRT) $(LIBS) $(addprefix $(OBJDIR)/,$(subst .c,.c.rel,$(SRC)))
 	@echo "$(COL_YELLOW)######## Compiling $@$(COL_RESET)"
-	@$(CC) $(CCFLAGS) -I$(INCDIR) -L$(LIBDIR) $^ $(SRCDIR)/$(subst .com,.c,$@) -o $(OBJDIR)/$(subst .com,.ihx,$@) ;
-	@$(HEX2BIN) -e com $(OBJDIR)/$(subst .com,.ihx,$@)
-	@cp $(OBJDIR)/$(PROG) $(DSKDIR)/$(PROG)
+	@$(CC) $(CCFLAGS) -I$(INCDIR) -L$(LIBDIR) $^ $(subst $(OBJDIR),$(SRCDIR),$(ROOTDIR)/$(subst .com,.c,$@)) -o $(subst .com,.ihx,$@) ;
+	@$(HEX2BIN) -e com $(subst .com,.ihx,$@)
+
+release:
+	@echo "$(COL_WHITE)**** Copying .COM file to $(DSKDIR)$(COL_RESET)"
+	@cp $(OBJDIR)/$(PROGRAM) $(DSKDIR)
 
 
 ###################################################################################################
 
 clean: cleanobj cleanlibs
-	@rm -f $(OBJDIR)/$(PROG) $(DSKDIR)/$(PROG)
 
 cleanobj:
 	@echo "$(COL_ORANGE)##  Cleaning obj$(COL_RESET)"
-	@rm -f $(DSKDIR)/$(PROG)
-	@rm -f *.com *.asm *.lst *.sym *.bin *.ihx *.lk *.map *.noi *.rel
+	@rm -f $(DSKDIR)/$(PROGRAM)
 	@rm -f $(OBJDIR)/*
 
 cleanlibs:
