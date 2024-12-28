@@ -895,18 +895,18 @@ void restoreScreen()
 	// Restore original screen mode
 	__asm
 		push ix
-		ld  a, (_originalSCRMOD)
-		or  a
-		jr  nz, .screen1
-		ld  ix, #INITXT				; Restore SCREEN 0
-		jr  .bioscall
+		ld   a, (_originalSCRMOD)
+		or   a
+		jr   nz, .screen1
+		ld   ix, #INITXT				; Restore SCREEN 0
+		jr   .bioscall
 	.screen1:
-		ld  ix, #INIT32				; Restore SCREEN 1
+		ld   ix, #INIT32				; Restore SCREEN 1
 	.bioscall:
 		BIOSCALL
-		ld  ix, #INIFNK				; Restore function keys
+		ld   ix, #INIFNK				; Restore function keys
 		BIOSCALL
-		pop ix
+		pop  ix
 	__endasm;
 
 	// Restore kanji mode if needed
