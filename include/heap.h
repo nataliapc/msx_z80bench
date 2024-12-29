@@ -11,8 +11,9 @@
 
 extern uint8_t *heap_top;
 
-extern void *malloc(uint16_t size);
-extern void free(uint16_t size);
+void *malloc(uint16_t size);
+void free(void *ptr);
+void freeSize(uint16_t size);
 
 void *heapPush();
 void *heapPop();

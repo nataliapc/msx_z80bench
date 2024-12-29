@@ -12,6 +12,7 @@
 // ========================================================
 extern uint16_t im2_counter;
 extern float calculatedFreq;
+extern char *floatStr;
 extern uint8_t msxVersionROM;
 extern uint8_t machineBrand;
 extern uint8_t cpuType;
@@ -130,7 +131,6 @@ void msx1_drawCpuSpeed()
 	float speed = calculatedFreq;
 	uint16_t speedUnits = (uint16_t)speed;
 	float speedDecimal = calculatedFreq - speedUnits;
-	char *floatStr = malloc(10);
 	char *q = heap_top, *p;
 
 	// Draw counter in top-right border
@@ -167,8 +167,6 @@ void msx1_drawCpuSpeed()
 	// Print CPU speed in top panel
 	memcpy(p, " MHz  ", 7);
 	putstrxy(15,5, floatStr);
-
-	free(10);
 }
 
 void msx1_textattr(uint16_t attr) __naked __z88dk_fastcall

@@ -5,8 +5,10 @@
 
 static void *_aux;
 
+/*
 static void *_pushStack[PUSHSTACK_SIZE];
 static const uint8_t _pushIndex = 0;
+*/
 
 void *malloc(uint16_t size)
 {
@@ -15,11 +17,17 @@ void *malloc(uint16_t size)
 	return _aux;
 }
 
-void free(uint16_t size)
+void free(void *ptr)
+{
+	heap_top = ptr;
+}
+
+void freeSize(uint16_t size)
 {
 	heap_top -= size;
 }
 
+/*
 void *heapPush()
 {
 	if (_pushIndex < PUSHSTACK_SIZE) {
@@ -43,3 +51,4 @@ void *heapPop()
 		return (void*)0;
 	}
 }
+*/

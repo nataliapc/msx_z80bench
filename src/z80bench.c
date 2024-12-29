@@ -41,6 +41,10 @@ void (*textblink_ptr)(uint8_t x, uint8_t y, uint16_t length, bool enabled);
 static uint8_t vdpFreq;
 float calculatedFreq = 0;
 uint16_t im2_counter = 0;
+uint8_t speedLineScale = 1;
+
+#define FLOATSTR_LEN	8
+char *floatStr;
 
 #define MSX_1		0
 #define MSX_2		1
@@ -228,11 +232,68 @@ void showVDPtype()
 	putstrxy(17,6, heap_top);
 }
 
+// ========================================================
 #define GR_X	17
 #define GR_Y	8
 #define GR_H	9
 #define LABELSY_X 	GR_X-13
 #define LABELSY_Y 	GR_Y
+
+uint16_t formatSpeedLine(char *floatStr, float speed)
+{
+	uint16_t speedUnits = (uint16_t)(speed * 2.f / speedLineScale);
+	float speedDecimal = speed / speedLineScale - speedUnits * 0.5f;
+	char *q = heap_top, *p;
+
+	// Prepare line buffer
+	memcpy(q, speedLineStr, 60);
+	memset(q, '\x8e', speedUnits);
+	q += speedUnits;
+	for (uint8_t i=0; i<sizeof(speedDecLimits); i++) {
+		if (speedDecimal <= speedDecLimits[i]) {
+			*q = '\x88'+i;
+			break;
+		}
+	}
+	*++q = ' ';
+	q++;
+
+	// Print speed numbers
+	p = formatFloat(speed, floatStr, 2);
+	memcpy(q, floatStr, p-floatStr);
+
+	return q-heap_top + p-floatStr;
+}
+
+void updateScale()
+{
+	char *floatStr = malloc(FLOATSTR_LEN);
+	char *p = heap_top;
+
+	// X labels
+	memset(heap_top, ' ', 54);
+	char mhz[] = "MHz";
+	uint8_t offset = 0;
+	for (uint8_t i=1; i<7; i++) {
+		if (i==6) {
+			*mhz = '\0';
+			offset++;
+		}
+		formatFloat(i*speedLineScale*5.f, floatStr, 0);
+		csprintf(p+offset, "%s%s", floatStr, mhz);
+		p+=10;
+	}
+	putlinexy(GR_X+8, GR_Y+GR_H+1, 54, heap_top);
+
+	// Draw fixed graphs
+	formatSpeedLine(floatStr, MSX_CLOCK);		// 3.57 MHz
+	putlinexy(GR_X+1, GR_Y+4, 60, heap_top);
+	formatSpeedLine(floatStr, MSX_CLOCK*1.5f);	// 5.36 MHz
+	putlinexy(GR_X+1, GR_Y+7, 60, heap_top);
+
+	free(floatStr);
+}
+
 void drawPanel()
 {
 	uint16_t i;
@@ -296,21 +357,19 @@ void drawPanel()
 	cvlinexy(GR_X,GR_Y, GR_H);
 	putlinexy(GR_X,GR_Y+GR_H, 1, "\x1a");
 
-	// Labels X
+	// Axis X
 	for (i=1; i<7; i++) {
 		putlinexy(GR_X+i*10-9,GR_Y+GR_H, 10, "\x91\x90\x91\x90\x91\x90\x91\x90\x91\x8f");
-		putstrxy(GR_X-2+i*10,GR_Y+GR_H+1, axisXLabelsStr[i-1]);
 	}
 
-	// Labels Y
+	// Y labels
 	for (i=0; i<9; i++) {
 		putlinexy(GR_X+1, LABELSY_Y+i, 60, speedLineStr);
 		putstrxy(LABELSY_X, LABELSY_Y+i, axisYLabelsStr[i]);
 	}
 
-	// Draw fixed graphs
-	putstrxy(GR_X+1, GR_Y+4, "\x8e\x8e\x8e\x8e\x8e\x8e\x8e\x89 3.57");
-	putstrxy(GR_X+1, GR_Y+7, "\x8e\x8e\x8e\x8e\x8e\x8e\x8e\x8e\x8e\x8e\x8d 5.36");
+	// Update scale (X labels & fixed graphs)
+	updateScale();
 
 	// Change color of current CPU speed
 	textblink(GR_X+1, GR_Y+1, 79-(GR_X+1), true);
@@ -345,55 +404,50 @@ void drawPanel()
 
 void drawCpuSpeed()
 {
-	float speed = calculatedFreq;
-	uint16_t speedUnits = (uint16_t)(speed * 2.f);
-	float speedDecimal = calculatedFreq - speedUnits * 0.5f;
-	char *floatStr = malloc(10);
-	char *q = heap_top, *p;
+	char *p;
 
 	// Draw counter in top-right border
-	gotoxy(57,1);
-	cprintf("\x86 %u \x87\x80\x80", im2_counter);
+	csprintf(heap_top, "\x86 %u \x87\x80\x80", im2_counter);
+	putstrxy(57,1, heap_top);
 
 	// Draw % of CPU speed
 	p = formatFloat(calculatedFreq * 100.f / MSX_CLOCK + 0.5f , heap_top, 0);
 	*p++ = '%';
+	*p++ = ' ';
 	*p = '\0';
-	putstrxy(65, 3, heap_top);
+	putstrxy(65,3, heap_top);
 
-	// Prepare line buffer
-	memcpy(q, speedLineStr, 60);
-	memset(q, '\x8e', speedUnits);
-	q += speedUnits;
-	for (uint8_t i=0; i<sizeof(speedDecLimits); i++) {
-		if (speedDecimal <= speedDecLimits[i]) {
-			*q = '\x88'+i;
-			break;
-		}
-	}
-	*++q = ' ';
-	q++;
+	// Format line & calculate scale
+	uint16_t len;
+	uint8_t oldLineScale = speedLineScale;
+	speedLineScale = 1;
+	do {
+		len = formatSpeedLine(floatStr, calculatedFreq);
+		if (len > 60) { speedLineScale*=2; continue; }
+		break;
+	} while (true);
 
-	// Print speed numbers
-	p = formatFloat(speed, floatStr, 2);
-	uint8_t len = p-floatStr;
-	memcpy(q, floatStr, len);
-
-	// Dump to screen
-	len += q-heap_top;
+	// Update scale if changed
 	waitVBLANK();
+	if (oldLineScale != speedLineScale) {
+		malloc(60);
+		updateScale();
+		freeSize(60);
+	}
+
+	// Clear text blink & wait
 	textblink(GR_X+1, GR_Y+1, 79-(GR_X+1), false);
 	waitVBLANK();
+
+	// Print speed line & set text blink
+	putlinexy(GR_X+1, GR_Y+1, 60, heap_top);
 	textblink(GR_X+1, GR_Y+1, (len < 60 ? len : 60), true);
 
-	// Print speed line
-	putlinexy(GR_X+1, GR_Y+1, 60, heap_top);
-
 	// Print CPU speed in top panel
+	p = floatStr;
+	while (*p) p++;
 	memcpy(p, " MHz   ", 8);
 	putstrxy(17,5, floatStr);
-
-	free(10);
 }
 
 // ========================================================
@@ -649,8 +703,6 @@ void calculateMhz_v2()
 // ========================================================
 void commandLine(char type)
 {
-	char *txt = malloc(10);
-
 	*((char*)&titleStr[33]) = '\0';
 	*((char*)&authorStr[11]) = '\0';
 	cprintf("%s (by %s)\n", &titleStr[2], &authorStr[2]);
@@ -694,15 +746,21 @@ void commandLine(char type)
 	for (int16_t i=im2+2; i>=im2-2; i--) {
 		im2_counter = i;
 		calculateMhz_ptr();
-		formatFloat(calculatedFreq, txt, 2);
-		cprintf("%s %u: %s MHz\n", i==im2?"->":"  ", i, txt);
+		formatFloat(calculatedFreq, floatStr, 2);
+		cprintf("%s %u: %s MHz\n", i==im2?"->":"  ", i, floatStr);
 	}
 }
 
 // ========================================================
 int main(char **argv, int argc) __sdcccall(0)
 {
-	argv; argc;
+	argv, argc;
+
+	// A way to avoid using low memory when using BIOS calls from DOS
+	if (heap_top < (void*)0xa000)
+		heap_top = (void*)0xa000;
+
+	floatStr = malloc(FLOATSTR_LEN);
 
 	//Platform system checks
 	checkPlatformSystem();
@@ -721,10 +779,6 @@ int main(char **argv, int argc) __sdcccall(0)
 	if (kanjiMode) {
 		setKanjiMode(0);
 	}
-
-	// A way to avoid using low memory when using BIOS calls from DOS
-	if (heap_top < (void*)0xa000)
-		heap_top = (void*)0xa000;
 
 	// Initialize screen 0[80]
 	textmode(screenMode);
