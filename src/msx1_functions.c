@@ -162,6 +162,9 @@ void msx1_drawCpuSpeed()
 	memcpy(q, floatStr, p-floatStr);
 
 	// Print speed line
+	waitVBLANK();
+	putlinexy(GR_X+1, GR_Y+1, 30, speedLineStr);
+	waitVBLANK();
 	putlinexy(GR_X+1, GR_Y+1, 30, heap_top);
 
 	// Print CPU speed in top panel
