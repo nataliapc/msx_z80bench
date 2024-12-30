@@ -12,6 +12,7 @@
 // ========================================================
 extern uint16_t im2_counter;
 extern float calculatedFreq;
+extern uint8_t speedLineScale;
 extern char *floatStr;
 extern uint8_t msxVersionROM;
 extern uint8_t machineBrand;
@@ -58,11 +59,39 @@ void msx1_showVDPtype()
 	putstrxy(15,6, heap_top);
 }
 
+// ========================================================
 #define GR_X	10
 #define GR_Y	8
 #define GR_H	9
 #define LABELSY_X 	1
 #define LABELSY_Y 	GR_Y
+
+static uint16_t formatSpeedLine(char *floatStr, float speed)
+{
+	uint16_t speedUnits = (uint16_t)(speed / speedLineScale);
+	float speedDecimal = speed / speedLineScale - speedUnits;
+	char *q = heap_top, *p;
+
+	// Prepare line buffer
+	memcpy(q, speedLineStr, 30);
+	memset(q, '\x8e', speedUnits);
+	q += speedUnits;
+	for (uint8_t i=0; i<sizeof(speedDecLimits); i++) {
+		if (speedDecimal <= speedDecLimits[i]) {
+			*q = '\x88'+i;
+			break;
+		}
+	}
+	*++q = ' ';
+	q++;
+
+	// Print speed numbers
+	p = formatFloat(speed, floatStr, 2);
+	memcpy(q, floatStr, p-floatStr);
+
+	return q-heap_top + p-floatStr;
+}
+
 void msx1_drawPanel()
 {
 	uint8_t i;
@@ -117,8 +146,11 @@ void msx1_drawPanel()
 	}
 
 	// Draw fixed graphs
-	putstrxy(GR_X+1, GR_Y+4, "\x8e\x8e\x8e\x8c 3.57");
-	putstrxy(GR_X+1, GR_Y+7, "\x8e\x8e\x8e\x8e\x8e\x8a 5.36");
+	// Draw fixed graphs
+	formatSpeedLine(floatStr, MSX_CLOCK);		// 3.57 MHz
+	putlinexy(GR_X+1, GR_Y+4, 30, heap_top);
+	formatSpeedLine(floatStr, MSX_CLOCK*1.5f);	// 5.36 MHz
+	putlinexy(GR_X+1, GR_Y+7, 30, heap_top);
 
 	// Information
 	putstrxy(3,20, info1Str);
@@ -128,10 +160,7 @@ void msx1_drawPanel()
 
 void msx1_drawCpuSpeed()
 {
-	float speed = calculatedFreq;
-	uint16_t speedUnits = (uint16_t)speed;
-	float speedDecimal = calculatedFreq - speedUnits;
-	char *q = heap_top, *p;
+	char *p;
 
 	// Draw counter in top-right border
 	gotoxy(3,24);
@@ -145,21 +174,7 @@ void msx1_drawCpuSpeed()
 	putstrxy(26,5, heap_top);
 
 	// Prepare line buffer
-	memcpy(q, speedLineStr, 30);
-	memset(q, '\x8e', speedUnits);
-	q += speedUnits;
-	for (uint8_t i=0; i<sizeof(speedDecLimits); i++) {
-		if (speedDecimal <= speedDecLimits[i]) {
-			*q = '\x88'+i;
-			break;
-		}
-	}
-	*++q = ' ';
-	q++;
-
-	// Print speed numbers
-	p = formatFloat(speed, floatStr, 2);
-	memcpy(q, floatStr, p-floatStr);
+	formatSpeedLine(floatStr, calculatedFreq);
 
 	// Print speed line
 	waitVBLANK();
@@ -168,6 +183,8 @@ void msx1_drawCpuSpeed()
 	putlinexy(GR_X+1, GR_Y+1, 30, heap_top);
 
 	// Print CPU speed in top panel
+	p = floatStr;
+	while (*p) p++;
 	memcpy(p, " MHz  ", 7);
 	putstrxy(15,5, floatStr);
 }

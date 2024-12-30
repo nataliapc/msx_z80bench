@@ -196,6 +196,7 @@ void abortRoutine()
 
 void putstrxy(uint8_t x, uint8_t y, char *str)
 {
+	if (!*str) return;
 	putlinexy(x, y, strlen(str), str);
 }
 
