@@ -18,8 +18,6 @@
 
 #define NTSC_LINES		525
 #define PAL_LINES		625
-#define NTSC_HBLANK		(192 - NTSC_LINES/4)	// ~60 (60.75)
-#define PAL_HBLANK		(192 - PAL_LINES/4)		// ~35 (35.75)
 
 #define intVecTabAd		0x8000		// Put the Interrupt Vector Table here
 #define intVecHalfAd	0x80		// High memory address pointer
@@ -40,8 +38,9 @@ void (*textblink_ptr)(uint8_t x, uint8_t y, uint16_t length, bool enabled);
 
 static uint8_t vdpFreq;
 float calculatedFreq = 0;
-uint16_t im2_counter = 0;
 uint8_t speedLineScale = 1;
+uint32_t im2_counter = 0;
+uint32_t counterRestHL = 0;
 
 #define FLOATSTR_LEN	8
 char *floatStr;
@@ -408,8 +407,8 @@ void drawCpuSpeed()
 	char *p;
 
 	// Draw counter in top-right border
-	csprintf(heap_top, "\x86 %u \x87\x80\x80", im2_counter);
-	putstrxy(57,1, heap_top);
+	csprintf(heap_top, "\x86 %lu \x87\x80\x80", im2_counter);
+	putstrxy(50,1, heap_top);
 
 	// Draw % of CPU speed
 	p = formatFloat(calculatedFreq * 100.f / MSX_CLOCK + 0.5f , heap_top, 0);
@@ -458,6 +457,9 @@ void setCustomInterrupt_v1() __naked
 	__asm
 		ld   hl, #0					; Counter = 0
 		ld   (_im2_counter), hl
+		ld   (_im2_counter+2), hl
+		ld   (_counterRestHL), hl
+		ld   (_counterRestHL+2), hl
 
 		ld   hl, #intVecTabAd		; Generate IVT here
 		ld   (hl), #intRoutHalfAd	; Use this as high and low address part
@@ -514,6 +516,9 @@ void setCustomInterrupt_v1() __naked
 	notFromVDP:
 		pop  af						; Restore modified registers
 		pop  hl
+
+		ld (_counterRestHL), hl			; Save HL rest of last interrupt
+
 		ei							; Interrupts are permitted again
 		reti						; Return to main program
 	intRoutEnd:						; For Length of routine code
@@ -523,12 +528,10 @@ void setCustomInterrupt_v1() __naked
 void calculateMhz_v1()
 {
 	isNTSC = detectNTSC();
-	vdpFreq = isNTSC ? 60 : 50;
-	float offset = isNTSC ? -0.0213068182f : 0.0252080667f;	// NTSC / PAL
+	uint32_t reference = isNTSC ? 906850774L : 758809112L;		// constants for 3.58 MHz NTSC/PAL (fixed point 1e6)
+	uint32_t offset = isNTSC ? 5876L : 5231L;					// offsets for NTSC/PAL (fixed point 1e6)
 
-	float secReference = isNTSC ? 4.241765873f : 4.210140845f;		// im2_counter/vdpFreq for 3.58 MHz
-	float seconds = (float)im2_counter / (float)vdpFreq;			// im2_counter/vdpFreq for current CPU speed
-	calculatedFreq = (secReference * MSX_CLOCK / seconds) + offset;
+	calculatedFreq = (reference / im2_counter * 1000.f + offset) / 1000000.f;
 }
 
 
@@ -538,6 +541,9 @@ void setCustomInterrupt_v2() __naked
 	__asm
 		ld   hl, #0					; Counter = 0
 		ld   (_im2_counter), hl
+		ld   (_im2_counter+2), hl
+		ld   (_counterRestHL), hl
+		ld   (_counterRestHL+2), hl
 
 		ld   hl, #intVecTabAd		; Generate IVT here
 		ld   (hl), #intRoutHalfAd	; Use this as high and low address part
@@ -672,6 +678,9 @@ void setCustomInterrupt_v2() __naked
 
 		pop  af						; Restore modified registers
 		pop  hl
+
+		ld (_counterRestHL), hl			; Save HL rest of last interrupt
+
 		ei							; Interrupts are permitted again
 		reti						; Return to main program
 	.v2_intRoutEnd:					; For Length of routine code
@@ -694,10 +703,16 @@ void setCustomInterrupt_v2() __naked
 void calculateMhz_v2()
 {
 	isNTSC = detectNTSC();
-	uint32_t reference = isNTSC ? 2711722080L : 2281597532L;	// constants for 3.58 MHz NTSC/PAL (fixed fp 10^6)
-	uint32_t offset = isNTSC ? 66953L : 36692L;					// offsets for NTSC/PAL (fixed fp 10^6)
+	uint32_t reference = isNTSC ? 2724284914L : 2279352268L;	// constants for 3.58 MHz NTSC/PAL (fixed point 1e6)
+	uint32_t offset = isNTSC ? 54933L : 46129L;					// offsets for NTSC/PAL (fixed point 1e6)
 
-	calculatedFreq = (reference / im2_counter + offset) / 1000000.f;
+	calculatedFreq = (reference / im2_counter * 1000.f + offset) / 1000000.f;
+}
+
+void calculateCounterRest() {
+	// Calculate decimals with counterRestHL
+	im2_counter = (counterRestHL * 1000L / ((655350L-counterRestHL)/im2_counter)) + im2_counter * 1000L;
+	calculateMhz_ptr();	
 }
 
 
@@ -738,17 +753,17 @@ void commandLine(char type)
 	cprintf("%s %s\n", vdpTypeStr[vdpType], vdpModesStr[detectNTSC()]);
 	
 	// CPU speed
-	cprintf("Testing TestLoop V%c:\n", type);
+	cprintf("Testing TestLoop V%cb4:\n", type);
 
 	setCustomInterrupt_ptr();
-	calculateMhz_ptr();
+	calculateCounterRest();
 
-	uint16_t im2 = im2_counter;
-	for (int16_t i=im2+2; i>=im2-2; i--) {
+	uint32_t im2 = im2_counter;
+	for (int32_t i=im2+100; i>=im2-100; i+=-50) {
 		im2_counter = i;
 		calculateMhz_ptr();
-		formatFloat(calculatedFreq, floatStr, 2);
-		cprintf("%s %u: %s MHz\n", i==im2?"->":"  ", i, floatStr);
+		formatFloat(calculatedFreq, floatStr, 4);
+		cprintf("%s %lu: %s MHz\n", i==im2?"->":"  ", i, floatStr);
 	}
 }
 
@@ -795,7 +810,7 @@ int main(char **argv, int argc) __sdcccall(0)
 //im2_counter = 220;
 	do {
 		setCustomInterrupt_ptr();
-		calculateMhz_ptr();
+		calculateCounterRest();
 		drawCpuSpeed_ptr();
 		click();
 //getch();

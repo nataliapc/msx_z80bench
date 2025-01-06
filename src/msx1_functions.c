@@ -10,7 +10,7 @@
 #define MSX_CLOCK		3.579545455f	// MHz
 
 // ========================================================
-extern uint16_t im2_counter;
+extern uint32_t im2_counter;
 extern float calculatedFreq;
 extern uint8_t speedLineScale;
 extern char *floatStr;
@@ -164,7 +164,7 @@ void msx1_drawCpuSpeed()
 
 	// Draw counter in top-right border
 	gotoxy(3,24);
-	cprintf("\x86 %u \x87\x80\x80", im2_counter);
+	cprintf("\x86 %lu \x87\x80\x80", im2_counter);
 
 	// Draw % of CPU speed
 	p = formatFloat(calculatedFreq * 100.f / MSX_CLOCK + 0.5f, heap_top, 0);
