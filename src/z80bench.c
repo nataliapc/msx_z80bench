@@ -72,6 +72,7 @@ static uint8_t turboRmode = TR_Z80;
 static bool ocmDetected;
 static uint8_t ocmSpeedIdx = -1;
 
+static bool tidesDetected;
 static uint8_t tidesSpeed = TIDES_20MHZ;
 
 static uint8_t kanjiMode;
@@ -143,6 +144,9 @@ static void checkPlatformSystem()
 
 	// Check OCM-PLD/MSX++
 	ocmDetected = ocm_detectDevice(DEVID_OCMPLD);
+
+	// Check Tides-Rider
+	tidesDetected = detectTidesRider();
 
 	// Machine type
 	machineBrand = detectMachineBrand();
@@ -392,8 +396,10 @@ void drawPanel()
 		putstrxy(29,23, "OCM Speed");
 	}
 
-//	putstrxy(42,22, "[F4] Toggle");
-//	putstrxy(42,23, "Tides Speed");
+	if (tidesDetected) {
+		putstrxy(42,22, "[F4] Cycle");
+		putstrxy(42,23, "Tides Speed");
+	}
 
 	putstrxy(68,22, "[F6] Toggle");
 	putstrxy(68,23, "NTSC/PAL");
@@ -835,11 +841,10 @@ int main(char **argv, int argc) __sdcccall(0)
 			ocm_sendSmartCmd(ocmSmartCmd[ocmSpeedIdx]);
 		} else
 		// F4: Toggle Tides Speed
-//		if (!varNEWKEY_row7.f4 && varNEWKEY_row6.shift) {
-//			tidesSpeed++;
-//			tidesSpeed &= 0xb00000011;
-//			setTidesSpeed(tidesSpeed | TIDES_SLOTS357);
-//		} else
+		if (!varNEWKEY_row7.f4 && varNEWKEY_row6.shift && tidesDetected) {
+			tidesSpeed = ++tidesSpeed % 4;
+			setTidesSpeed(tidesSpeed | TIDES_SLOTS357);
+		} else
 		// F6: Toggle NTSC/PAL
 		if (!varNEWKEY_row6.f1 && !varNEWKEY_row6.shift && msxVersionROM) {
 			setNTSC(!isNTSC);
@@ -868,6 +873,7 @@ void restoreScreen()
 	varFORCLR = originalFORCLR;
 	varBAKCLR = originalBAKCLR;
 	varBDRCLR = originalBDRCLR;
+	varCLIKSW = originalCLIKSW;
 	clrscr();
 
 	// Restore original screen mode
