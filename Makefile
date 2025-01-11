@@ -102,7 +102,7 @@ $(OBJDIR)/$(PROGRAM): $(CRT) $(LIBS) $(addprefix $(OBJDIR)/,$(subst .c,.c.rel,$(
 	@$(CC) $(CCFLAGS) -I$(INCDIR) -L$(LIBDIR) $^ -o $(subst .com,.ihx,$@) ;
 	@$(HEX2BIN) -e com $(subst .com,.ihx,$@)
 
-release:
+release: $(OBJDIR)/$(PROGRAM)
 	@echo "$(COL_WHITE)**** Copying .COM file to $(DSKDIR)$(COL_RESET)"
 	@cp $(OBJDIR)/$(PROGRAM) $(DSKDIR)
 

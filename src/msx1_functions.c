@@ -11,14 +11,15 @@
 
 // ========================================================
 extern uint32_t im2_counter;
-extern float calculatedFreq;
+extern float   calculatedFreq;
 extern uint8_t speedLineScale;
-extern char *floatStr;
+extern char   *floatStr;
 extern uint8_t msxVersionROM;
 extern uint8_t machineBrand;
 extern uint8_t cpuType;
+extern bool    isCMOS;
 extern uint8_t vdpType;
-extern bool isNTSC;
+extern bool    isNTSC;
 extern const char titleStr[];
 extern const char authorStr[];
 extern const char infoMachineStr[];
@@ -27,6 +28,7 @@ extern const char infoVdpTypeStr[];
 extern const char *machineTypeStr[];
 extern const char *machineBrandStr[];
 extern const char *cpuTypesStr[];
+extern const char *cmosStr[];
 extern const char *vdpTypeStr[];
 extern const char *vdpModesStr[];
 extern const char *info1Str;
@@ -50,7 +52,8 @@ void putstrxy(uint8_t x, uint8_t y, const char *str);
 // ========================================================
 void msx1_showCPUtype()
 {
-	putstrxy(15,4, cpuTypesStr[cpuType]);
+	csprintf(heap_top, "%s(%s)    ", cpuTypesStr[cpuType], cmosStr[isCMOS]);
+	putstrxy(15,4, heap_top);
 }
 
 void msx1_showVDPtype()

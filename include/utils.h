@@ -37,18 +37,23 @@ void setKanjiMode(uint8_t mode) __z88dk_fastcall;
 uint8_t detectVDP() __sdcccall(1);
 bool detectR800() __sdcccall(0);
 bool detectZ280() __sdcccall(0);
+bool detectNMOS() __sdcccall(1);
 bool detectTurboPana() __z88dk_fastcall;
 bool setTurboPana(bool enabled) __sdcccall(1);
 bool detectTurboR() __z88dk_fastcall;
 void setCpuTurboR(uint8_t mode) __z88dk_fastcall;
 void setNTSC(bool enabled) __sdcccall(1);
 
-#define TIDES_3MHZ		0
-#define TIDES_6MHZ		1
+#define TIDES_3_57MHZ	0
+#define TIDES_6_66MHZ	1
 #define TIDES_10MHZ		2
 #define TIDES_20MHZ		3
 #define TIDES_SLOTS357	4
+bool detectTidesRider() __sdcccall(1);
 void setTidesSpeed(uint8_t speed) __z88dk_fastcall;
+
+uint8_t getRegisterRTC(uint8_t reg, uint8_t block);
+void setRegisterRTC(uint8_t reg, uint8_t block, uint8_t value);
 
 
 #endif//__UTILS_H__

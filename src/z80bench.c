@@ -43,7 +43,7 @@ uint32_t im2_counter = 0;
 uint32_t counterRestHL = 0;
 
 #define FLOATSTR_LEN	8
-char *floatStr;
+char  *floatStr;
 
 #define MSX_1		0
 #define MSX_2		1
@@ -56,9 +56,10 @@ uint8_t machineBrand;
 #define CPU_R800	1
 #define CPU_Z280	2
 uint8_t cpuType = CPU_Z80;
+bool    isCMOS;
 
 uint8_t vdpType;
-bool isNTSC;
+bool    isNTSC;
 
 static bool turboPanaDetected;
 static bool turboPanaEnabled = false;
@@ -156,6 +157,9 @@ static void checkPlatformSystem()
 
 	// NTSC/PAL
 	isNTSC = detectNTSC();
+
+	// Detect if Z80 is NMOS/CMOS
+	isCMOS = detectNMOS();
 }
 
 uint8_t detectCPUtype()
@@ -226,7 +230,12 @@ void showCPUtype()
 		csprintf(heap_top, "%s (%s) ", cpuTypesStr[cpuType], turboRmodeStr[turboRmode]);
 		putstrxy(17,4, heap_top);
 	} else {
-		putstrxy(17,4, cpuTypesStr[cpuType]);
+		char *str = cpuTypesStr[cpuType];
+		if (cpuType == CPU_Z80) {
+			csprintf(heap_top, "%s(%s)    ", str, cmosStr[isCMOS]);
+			str = heap_top;
+		}
+		putstrxy(17,4, str);
 	}
 }
 
@@ -773,6 +782,7 @@ void commandLine(char type)
 	}
 }
 
+
 // ========================================================
 int main(char **argv, int argc) __sdcccall(0)
 {
@@ -833,6 +843,7 @@ int main(char **argv, int argc) __sdcccall(0)
 			if (turboRmode > TR_R800_DRAM) turboRmode = TR_Z80;
 			setCpuTurboR(turboRmode);
 			cpuType = detectCPUtype();
+			isCMOS = detectNMOS();
 			showCPUtype_ptr();
 		} else
 		// F3: Cycle OCM Speed
