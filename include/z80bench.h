@@ -3,7 +3,7 @@
 
 // ========================================================
 
-const char titleStr[] = "\x86 Z80 Frequency Benchmark v1.3.1 \x87";
+const char titleStr[] = "\x86 Z80 Frequency Benchmark v1.4.0 \x87";
 const char authorStr[] = "\x86 NataliaPC \x87";
 const char infoMachineStr[] = "Machine   : ";
 const char infoCpuTypeStr[] = "CPU Type  : ";
@@ -17,7 +17,11 @@ static const char *axisYLabelsStr[] = {
 };
 
 const char *cpuTypesStr[] = {
-	"Z80        ", "R800", "Z280       "
+	"Z80 ", "R800", "Z280"
+};
+
+const char *cmosStr[] = {
+	"CMOS", "NMOS"
 };
 
 const char *vdpTypeStr[] = {

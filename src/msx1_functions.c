@@ -113,7 +113,7 @@ void msx1_drawPanel()
 
 	// Info
 	drawFrame(1,2, 40,7);
-	putstrxy(3,3, infoVdpTypeStr);
+	putstrxy(3,3, infoMachineStr);
 	putstrxy(3,4, infoCpuTypeStr);
 	putstrxy(3,5, "CPU Speed : --         ---%");
 	putstrxy(3,6, infoVdpTypeStr);
