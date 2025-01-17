@@ -24,6 +24,9 @@ const char *cmosStr[] = {
 	"CMOS", "NMOS"
 };
 
+#define VDP_TMS9918A	0
+#define VDP_V9938		1
+#define VDP_V9958		2
 const char *vdpTypeStr[] = {
 	"TMS9918A", "V9938", "V9958"
 };

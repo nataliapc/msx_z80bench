@@ -262,14 +262,17 @@ volatile __at (NEWKEY+11) struct {
 	unsigned unused6: 1;
 	unsigned unused7: 1;
 } varNEWKEY_row11;
-volatile __at (RG9SAV) struct {
-	unsigned DC: 1;
-	unsigned NT: 1;			// 0:NTSC, 1:PAL
-	unsigned E0: 1;
-	unsigned IL: 1;			// 0:non-interlace, 1:interlace
-	unsigned SM: 2;			// Simultaneous mode
-	unsigned unused6: 1;
-	unsigned LN: 1;			// 0:192 lines, 1:212 lines
+volatile __at (RG9SAV) union {
+	struct {
+		unsigned DC: 1;
+		unsigned NT: 1;			// 0:NTSC, 1:PAL
+		unsigned E0: 1;
+		unsigned IL: 1;			// 0:non-interlace, 1:interlace
+		unsigned SM: 2;			// Simultaneous mode
+		unsigned unused6: 1;
+		unsigned LN: 1;			// 0:192 lines, 1:212 lines
+	};
+	uint8_t raw;
 } varRG9SAV;
 
 

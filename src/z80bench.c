@@ -78,6 +78,7 @@ static uint8_t tidesSpeed = TIDES_20MHZ;
 
 static uint8_t kanjiMode;
 static uint8_t originalLINL40;
+static uint8_t originalCRTCNT;
 static uint8_t originalSCRMOD;
 static uint8_t originalFORCLR;
 static uint8_t originalBAKCLR;
@@ -100,6 +101,7 @@ bool detectNTSC();
 static void checkPlatformSystem()
 {
 	originalLINL40 = varLINL40;
+	originalCRTCNT = varCRTCNT;
 	originalSCRMOD = varSCRMOD;
 	originalFORCLR = varFORCLR;
 	originalBAKCLR = varBAKCLR;
@@ -108,12 +110,19 @@ static void checkPlatformSystem()
 
 	// Check MSX2 ROM or higher
 	msxVersionROM = getRomByte(MSXVER);
+
+	// VDP type
+	vdpType = detectVDP();
+	if (!msxVersionROM && vdpType >= VDP_V9938) {	// for MSX1 with V9938 or higher
+		varRG9SAV.raw = 0;
+		varRG9SAV.NT = getRomByte(LOCALE) >> 7;
+	}
+
+	// Configure dynamics functions
 	if (!msxVersionROM) {
 		screenMode = BW40;
 		blinkBase = 0x4000;
 		patternsBase = 0x0800;
-		setCustomInterrupt_ptr = setCustomInterrupt_v1;
-		calculateMhz_ptr = calculateMhz_v1;
 		drawCpuSpeed_ptr = msx1_drawCpuSpeed;
 		drawPanel_ptr = msx1_drawPanel;
 		showCPUtype_ptr = msx1_showCPUtype;
@@ -124,14 +133,19 @@ static void checkPlatformSystem()
 		screenMode = BW80;
 		blinkBase = 0x0800;
 		patternsBase = 0x1000;
-		setCustomInterrupt_ptr = setCustomInterrupt_v2;
-		calculateMhz_ptr = calculateMhz_v2;
 		drawCpuSpeed_ptr = drawCpuSpeed;
 		drawPanel_ptr = drawPanel;
 		showCPUtype_ptr = showCPUtype;
 		showVDPtype_ptr = showVDPtype;
 		textattr_ptr = textattr;
 		textblink_ptr = textblink;
+	}
+	if (vdpType < VDP_V9938) {
+		setCustomInterrupt_ptr = setCustomInterrupt_v1;
+		calculateMhz_ptr = calculateMhz_v1;
+	} else {
+		setCustomInterrupt_ptr = setCustomInterrupt_v2;
+		calculateMhz_ptr = calculateMhz_v2;
 	}
 
 	// Check CPU type
@@ -142,6 +156,9 @@ static void checkPlatformSystem()
 
 	// Check TurboR
 	turboRdetected = detectTurboR();
+	if (turboRdetected) {
+		turboRmode = getCpuTurboR();
+	}
 
 	// Check OCM-PLD/MSX++
 	ocmDetected = ocm_detectDevice(DEVID_OCMPLD);
@@ -151,9 +168,6 @@ static void checkPlatformSystem()
 
 	// Machine type
 	machineBrand = detectMachineBrand();
-
-	// VDP type
-	vdpType = detectVDP();
 
 	// NTSC/PAL
 	isNTSC = detectNTSC();
@@ -189,7 +203,7 @@ uint8_t detectMachineBrand()
 
 bool detectNTSC()
 {
-	return !(msxVersionROM ?
+	return !(vdpType >= VDP_V9938 ?
 		varRG9SAV.NT :					// for MSX2 or higher
 		getRomByte(LOCALE) >> 7			// for MSX1
 	);
@@ -573,15 +587,6 @@ void setCustomInterrupt_v2() __naked
 		ld   bc, #.v2_intRoutEnd-.v2_intRoutIM2	; Length of the routine
 		ldir									; Copy the routine
 
-		call _waitVBLANK
-
-		ld   a, (RG0SAV)			; We want to have line interrupts, so enable them.
-		or   #16
-		ld   (RG0SAV), a
-		ld   b, a					; data to write
-		ld   c, #0					; Register number (9 to 24	Control registers 8 to 23	Read / Write	MSX2 and higher)
-		call WRTVDP_without_DI_EI	; Write B value to C register
-
 		ld   a, (RG9SAV)
 		bit  1, a
 		jr   z, .v2_ntsc
@@ -596,12 +601,22 @@ void setCustomInterrupt_v2() __naked
 		ld   a, #17					; 192 - NTSC_LINES / 2 / 3 * 2
 		ld   (.v2_firstLine), a
 	.v2_setline:
+
 		ld   b, a					; Set the next line interrupt on line
 		ld   c, #19					; Register number (9 to 24	Control registers 8 to 23	Read / Write	MSX2 and higher)
 		call WRTVDP_without_DI_EI	; Write B value to C register
 
 		ld   b, #0					; Set display offset to 0
 		ld   c, #23					; Register number (9 to 24	Control registers 8 to 23	Read / Write	MSX2 and higher)
+		call WRTVDP_without_DI_EI	; Write B value to C register
+
+		call _waitVBLANK
+
+		ld   a, (RG0SAV)			; We want to have line interrupts, so enable them.
+		or   #16
+		ld   (RG0SAV), a
+		ld   b, a					; data to write
+		ld   c, #0					; Register number (9 to 24	Control registers 8 to 23	Read / Write	MSX2 and higher)
 		call WRTVDP_without_DI_EI	; Write B value to C register
 
 		di							; No interrupts during switch
@@ -718,8 +733,8 @@ void setCustomInterrupt_v2() __naked
 void calculateMhz_v2()
 {
 	isNTSC = detectNTSC();
-	uint32_t reference = isNTSC ? 2724284914L : 2279352268L;	// constants for 3.58 MHz NTSC/PAL (fixed point 1e6)
-	uint32_t offset = isNTSC ? 54933L : 46129L;					// offsets for NTSC/PAL (fixed point 1e6)
+	uint32_t reference = isNTSC ? 2724432844L : 2279693169L;	// constants for 3.58 MHz NTSC/PAL (fixed point 1e6)
+	uint32_t offset = isNTSC ? 54742L : 47477L;					// offsets for NTSC/PAL (fixed point 1e6)
 
 	calculatedFreq = (reference / im2_counter * 1000.f + offset) / 1000000.f;
 }
@@ -734,18 +749,20 @@ void calculateCounterRest() {
 // ========================================================
 void commandLine(char type)
 {
-	*((char*)&titleStr[33]) = '\0';
+	*((char*)&titleStr[strlen(titleStr)-2]) = '\0';
 	*((char*)&authorStr[11]) = '\0';
 	cprintf("%s (by %s)\n", &titleStr[2], &authorStr[2]);
 
 	if (type == '1') {
 		setCustomInterrupt_ptr = setCustomInterrupt_v1;
 		calculateMhz_ptr = calculateMhz_v1;
-	} else if (type == '2' && msxVersionROM) {
+	} else if (type == '2' && vdpType >= VDP_V9938) {
 		setCustomInterrupt_ptr = setCustomInterrupt_v2;
 		calculateMhz_ptr = calculateMhz_v2;
 	} else {
-		die("\nz80bench [1|2]\n\n  1: Debug TestLoop V1\n  2: Debug TestLoop V2 (not for MSX1)\n");
+		die("\nz80bench [1|2]\n\n"
+			"  1: Debug TestLoop V1\n"
+			"  2: Debug TestLoop V2 (V9938 or higher)\n");
 	}
 
 	// Machine type
@@ -857,8 +874,9 @@ int main(char **argv, int argc) __sdcccall(0)
 			setTidesSpeed(tidesSpeed | TIDES_SLOTS357);
 		} else
 		// F6: Toggle NTSC/PAL
-		if (!varNEWKEY_row6.f1 && !varNEWKEY_row6.shift && msxVersionROM) {
-			setNTSC(!isNTSC);
+		if (!varNEWKEY_row6.f1 && !varNEWKEY_row6.shift && vdpType >= VDP_V9938) {
+			isNTSC = !detectNTSC();
+			setNTSC(isNTSC);
 			showVDPtype_ptr();
 		}
 		varPUTPNT = varGETPNT;
@@ -881,6 +899,7 @@ void restoreScreen()
 	_fillVRAM(0x0800, 240, 0);
 
 	varLINL40 = originalLINL40;
+	varCRTCNT = originalCRTCNT;
 	varFORCLR = originalFORCLR;
 	varBAKCLR = originalBAKCLR;
 	varBDRCLR = originalBDRCLR;

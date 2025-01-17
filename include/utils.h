@@ -42,6 +42,7 @@ bool detectTurboPana() __z88dk_fastcall;
 bool setTurboPana(bool enabled) __sdcccall(1);
 bool detectTurboR() __z88dk_fastcall;
 void setCpuTurboR(uint8_t mode) __z88dk_fastcall;
+uint8_t getCpuTurboR() __sdcccall(1);
 void setNTSC(bool enabled) __sdcccall(1);
 
 #define TIDES_3_57MHZ	0
