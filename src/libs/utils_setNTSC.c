@@ -6,6 +6,7 @@ void setNTSC(bool enabled) __naked __sdcccall(1)
 {
 	enabled;
 	__asm
+		push ix
 		and  #1
 		xor  #1
 		add  a
@@ -17,6 +18,8 @@ void setNTSC(bool enabled) __naked __sdcccall(1)
 		ld   b, a
 		ld   c, #0x09		; Register #09
 		ld   ix, #WRTVDP
-		JP_BIOSCALL
+		BIOSCALL
+		pop  ix
+		ret
 	__endasm;
 }

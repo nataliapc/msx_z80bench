@@ -1,4 +1,5 @@
 #include <string.h>
+#include "globals.h"
 #include "msx1_functions.h"
 #include "msx_const.h"
 #include "heap.h"
@@ -7,10 +8,8 @@
 #include "conio_aux.h"
 
 
-#define MSX_CLOCK		3.579545455f	// MHz
-
 // ========================================================
-extern uint32_t im2_counter;
+extern uint32_t int_counter;
 extern float   calculatedFreq;
 extern uint8_t speedLineScale;
 extern char   *floatStr;
@@ -163,21 +162,22 @@ void msx1_drawPanel()
 
 void msx1_drawCpuSpeed()
 {
+	float calculatedFreqFinal = calculatedFreq + FREQ_OFFSET;
 	char *p;
 
 	// Draw counter in top-right border
 	gotoxy(3,24);
-	cprintf("\x86 %lu \x87\x80\x80", im2_counter);
+	cprintf("\x86 %lu \x87\x80\x80", int_counter);
 
 	// Draw % of CPU speed
-	p = formatFloat(calculatedFreq * 100.f / MSX_CLOCK + 0.5f, heap_top, 0);
+	p = formatFloat(calculatedFreqFinal * 100.f / MSX_CLOCK + 0.5f, heap_top, 0);
 	*p++ = '%';
 	*p++ = ' ';
 	*p = '\0';
 	putstrxy(26,5, heap_top);
 
 	// Prepare line buffer
-	formatSpeedLine(floatStr, calculatedFreq);
+	formatSpeedLine(floatStr, calculatedFreqFinal);
 
 	// Print speed line
 	waitVBLANK();

@@ -1,9 +1,10 @@
 #include <stdint.h>
+#include "globals.h"
 
 
 // ========================================================
 
-const char titleStr[] = "\x86 Z80 Frequency Benchmark v1.4.0 \x87";
+const char titleStr[] = "\x86 Z80 Frequency Benchmark v1.4.1 \x87";
 const char authorStr[] = "\x86 NataliaPC \x87";
 const char infoMachineStr[] = "Machine   : ";
 const char infoCpuTypeStr[] = "CPU Type  : ";
