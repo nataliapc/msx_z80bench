@@ -162,7 +162,6 @@ void msx1_drawPanel()
 
 void msx1_drawCpuSpeed()
 {
-	float calculatedFreqFinal = calculatedFreq + FREQ_OFFSET;
 	char *p;
 
 	// Draw counter in top-right border
@@ -170,14 +169,14 @@ void msx1_drawCpuSpeed()
 	cprintf("\x86 %lu \x87\x80\x80", int_counter);
 
 	// Draw % of CPU speed
-	p = formatFloat(calculatedFreqFinal * 100.f / MSX_CLOCK + 0.5f, heap_top, 0);
+	p = formatFloat(calculatedFreq * 100.f / MSX_CLOCK + 0.5f, heap_top, 0);
 	*p++ = '%';
 	*p++ = ' ';
 	*p = '\0';
 	putstrxy(26,5, heap_top);
 
 	// Prepare line buffer
-	formatSpeedLine(floatStr, calculatedFreqFinal);
+	formatSpeedLine(floatStr, calculatedFreq);
 
 	// Print speed line
 	waitVBLANK();

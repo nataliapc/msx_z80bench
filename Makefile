@@ -45,7 +45,10 @@ OPFLAGS = --std-sdcc2x --less-pedantic --opt-code-size -pragma-define:CRT_ENABLE
 WRFLAGS = --disable-warning 196 --disable-warning 84
 CCFLAGS = --code-loc 0x0180 --data-loc 0 -mz80 --no-std-crt0 --out-fmt-ihx $(OPFLAGS) $(WRFLAGS) $(DEFINES) $(DEBUG)
 
-LIBS = $(LIBDIR)/conio.lib $(LIBDIR)/dos.lib $(LIBDIR)/utils.lib
+LIBS =  $(LIBDIR)/conio.lib \
+		$(LIBDIR)/dos.lib \
+		$(LIBDIR)/utils.lib
+
 SRC =	z80bench.c \
 		heap.c \
 		msx1_functions.c \
@@ -131,6 +134,8 @@ test: all
 #	openmsx -machine msx1_eu -ext Mitsubishi_ML-30DC_ML-30FD -ext debugdevice -diska $(DSKDIR) $(EMUSCRIPTS)
 #	openmsx -machine msx1 -ext debugdevice -diska $(DSKDIR) $(EMUSCRIPTS)
 #	openmsx -machine msx2_eu -ext debugdevice -diska $(DSKDIR) $(EMUSCRIPTS)
-	openmsx -machine msx2plus -ext debugdevice -ext msxdos2 -diska $(DSKDIR) $(EMUSCRIPTS)
+#	openmsx -machine msx2plus -ext debugdevice -ext msxdos2 -diska $(DSKDIR) $(EMUSCRIPTS)
 #	openmsx -machine Sony_HB-F1XD -ext debugdevice -diska $(DSKDIR) $(EMUSCRIPTS)
-#	openmsx -machine turbor -ext debugdevice -diska $(DSKDIR) $(EMUSCRIPTS)
+#	openmsx -machine Spectravideo_SVI-738 -ext debugdevice -diska $(DSKDIR) $(EMUSCRIPTS)
+#	openmsx -machine Yamaha_CX11 -ext Mitsubishi_ML-30DC_ML-30FD -ext ram512k -ext debugdevice -diska $(DSKDIR) $(EMUSCRIPTS)
+	openmsx -machine turbor -ext debugdevice -diska $(DSKDIR) $(EMUSCRIPTS)

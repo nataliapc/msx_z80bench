@@ -15,16 +15,12 @@
 #include "z80bench.h"
 
 
-#define intVecTabAd		0x8000		// Put the Interrupt Vector Table here
-#define intVecHalfAd	0x80		// High memory address pointer
-#define intRoutStart	0x8181		// Let interrupt routine start here
-#define intRoutHalfAd	0x81		// Address high and low
-
+/**
+ * Variables and functions that vary from MSX1 to MSX2 or higher.
+ */
 uint8_t screenMode = BW80;
 uint16_t blinkBase = 0x0800;
 uint16_t patternsBase = 0x1000;
-void (*setCustomInterrupt_ptr)();
-void (*calculateMhz_ptr)();
 void (*drawCpuSpeed_ptr)();
 void (*drawPanel_ptr)();
 void (*showCPUtype_ptr)();
@@ -32,15 +28,29 @@ void (*showVDPtype_ptr)();
 void (*textattr_ptr)(uint16_t attr) __z88dk_fastcall;
 void (*textblink_ptr)(uint8_t x, uint8_t y, uint16_t length, bool enabled);
 
+/**
+ * Variables for calculating CPU speed.
+ */
 static uint8_t vdpFreq;
 float calculatedFreq = 0;
 uint8_t speedLineScale = 1;
-uint32_t int_counter = 0;
-uint32_t counterRestHL = 0;
+uint64_t int_counter = 0;
+uint64_t counterRestHL = 0;
 
+/**
+ * Pointer to a string buffer used to hold a floating-point value as a string.
+ * This is likely used for displaying the floating-point value in a formatted
+ * way, such as in a user interface.
+ */
 #define FLOATSTR_LEN	8
 char  *floatStr;
 
+/**
+ * Stores the MSX version of the ROM.
+ * This variable is likely used to determine the capabilities and features of the
+ * MSX system the program is running on, in order to adapt the behavior and
+ * presentation accordingly.
+ */
 #define MSX_1		0
 #define MSX_2		1
 #define MSX_2P		2
@@ -48,30 +58,57 @@ char  *floatStr;
 uint8_t msxVersionROM;
 uint8_t machineBrand;
 
+/**
+ * Stores the current CPU type of the MSX system.
+ */
 #define CPU_Z80		0
 #define CPU_R800	1
 #define CPU_Z280	2
 uint8_t cpuType = CPU_Z80;
 bool    isCMOS;
 
+/**
+ * Stores the current VDP (Video Display Processor) type of the MSX system.
+ */
 uint8_t vdpType;
 bool    isNTSC;
 
+/**
+ * Stores a flag indicating whether the TurboPana feature has been detected.
+ * TurboPana is a hardware enhancement for the MSX2+ allowing CPU to run at 5.36MHz.
+ */
 static bool turboPanaDetected;
 static bool turboPanaEnabled = false;
 
-static bool turboRdetected;
-#define TR_Z80			0
-#define TR_R800_ROM		1
-#define TR_R800_DRAM	2
+/**
+ * Stores the current TurboR mode of the MSX system.
+ */
+#define TR_Z80			0			// The system is running in Z80 mode.
+#define TR_R800_ROM		1			// The system is running in R800 ROM mode.
+#define TR_R800_DRAM	2			// The system is running in R800 DRAM mode.
 static uint8_t turboRmode = TR_Z80;
+static bool    turboRdetected;
 
+/**
+ * Stores a flag indicating whether the OCM (oneChipMSX/MSX++) has been detected.
+ * OCM firmware allows multiple CPU custom speeds:
+ * 3.57MHz, 4.10MHz, 4.48MHz, 4.90MHz, 5.39MHz, 6.10MHz, 6.96MHz, 8.06MHz.
+ */
 static bool ocmDetected;
 static uint8_t ocmSpeedIdx = -1;
 
+/**
+ * Stores a flag indicating whether the Tides-Rider board has been detected.
+ * Tides-Rider is a MSX2+ board allowing the CPU to run at:
+ * 3.57MHz, 6.66MHz, 10MHz, 20MHz.
+ */
 static bool tidesDetected;
 static uint8_t tidesSpeed = TIDES_20MHZ;
 
+/**
+ * Stores the original values of various system variables before they are modified.
+ * These variables are used to restore the system state when the program exits.
+ */
 static uint8_t kanjiMode;
 static uint8_t originalLINL40;
 static uint8_t originalCRTCNT;
@@ -82,10 +119,6 @@ static uint8_t originalBDRCLR;
 static uint8_t originalCLIKSW;
 
 
-void setCustomInterrupt_v1();
-void setCustomInterrupt_v2();
-void calculateMhz_v1();
-void calculateMhz_v2();
 void drawCpuSpeed();
 void drawPanel();
 void showCPUtype();
@@ -136,13 +169,6 @@ static void checkPlatformSystem()
 		showVDPtype_ptr = showVDPtype;
 		textattr_ptr = textattr;
 		textblink_ptr = textblink;
-	}
-	if (vdpType < VDP_V9938) {
-		setCustomInterrupt_ptr = setCustomInterrupt_v1;
-		calculateMhz_ptr = calculateMhz_v1;
-	} else {
-		setCustomInterrupt_ptr = setCustomInterrupt_v2;
-		calculateMhz_ptr = calculateMhz_v2;
 	}
 
 	// Check CPU type
@@ -434,7 +460,6 @@ void drawPanel()
 
 void drawCpuSpeed()
 {
-	float calculatedFreqFinal = calculatedFreq + FREQ_OFFSET;
 	char *p;
 
 	// Draw counter in top-right border
@@ -442,7 +467,7 @@ void drawCpuSpeed()
 	putstrxy(50,1, heap_top);
 
 	// Draw % of CPU speed
-	p = formatFloat(calculatedFreqFinal * 100.f / MSX_CLOCK + 0.5f , heap_top, 0);
+	p = formatFloat(calculatedFreq * 100.f / MSX_CLOCK + 0.5f , heap_top, 0);
 	*p++ = '%';
 	*p++ = ' ';
 	*p = '\0';
@@ -453,7 +478,7 @@ void drawCpuSpeed()
 	uint8_t oldLineScale = speedLineScale;
 	speedLineScale = 1;
 	do {
-		len = formatSpeedLine(floatStr, calculatedFreqFinal);
+		len = formatSpeedLine(floatStr, calculatedFreq);
 		if (len > 60) { speedLineScale*=2; continue; }
 		break;
 	} while (true);
@@ -482,305 +507,91 @@ void drawCpuSpeed()
 }
 
 // ========================================================
-// http://map.grauw.nl/articles/interrupts.php
-void setCustomInterrupt_v1() __naked
+void doInterruptLoop() __naked
 {
 	__asm
-		ld   hl, #0					; Counter = 0
+		ld   hl, #0					; Counter = 0 (64 bits long)
 		ld   (_int_counter), hl
 		ld   (_int_counter+2), hl
-		ld   (_counterRestHL), hl
+		ld   (_int_counter+4), hl
+		ld   (_int_counter+6), hl
+		ld   (_counterRestHL), hl	; CounterRest = 0 (64 bits long)
 		ld   (_counterRestHL+2), hl
+		ld   (_counterRestHL+4), hl
+		ld   (_counterRestHL+6), hl
 
-;		ld   hl, #intVecTabAd		; Generate IVT here
-;		ld   (hl), #intRoutHalfAd	; Use this as high and low address part
-;		ld   d,h					; Copy destination pointer from
-;		ld   e,l					;   the source pointer
-;		inc  de						; Destination 1 byte further
-;		ld   bc, #128*2				; 128 vectors, 1 byte extra for 256th
-;		ldir						; Generate table
+		ei
+		halt						; Wait interruption to change the hook
 
-;		ld   hl, #.v1_intRoutine				; Routine for IM 2
-;		ld   de, #intRoutStart					; Put routine here
-;		ld   bc, #.v1_intRoutEnd-.v1_intRoutine	; Length of the routine
-;		ldir									; Copy the routine
-
-;		call _waitVBLANK
-		halt
-
-;		di							; No interrupts during switch
-;		ld   a, #intVecHalfAd		; Use this as high address part
-;		ld   i, a					; Set high address part
-;		im   2						; Switch to IM 2
-;		ei							; Enable interrupts
-	di
-	ld   hl, (#0x38+1)
-	ld   (#.v1_rstBackup), hl
-	ld   hl, #.v1_intRoutine
-	ld   (#0x38+1), hl
-	ei
+		di							; Change the VBLANK interrupt hook
+		ld   hl, (#0x38+1)
+		ld   (#.rstBackup), hl
+		ld   hl, #.intRoutine
+		ld   (#0x38+1), hl
+		ei
 		halt						; Important to have stable values (skip first interrupt)
 
-		xor  a
+		xor  a						; Test loop
 		ld   b, #LOOP2
-	.v1_loop1:
+	.loop1:
 		ld   hl, #0xffff
-	.v1_loop2:
+	.loop2:
 		dec  hl
 		cp   h
-		jp   nz, .v1_loop2
+		jp   nz, .loop2
 		cp   l
-		jp   nz, .v1_loop2
-		djnz .v1_loop1
+		jp   nz, .loop2
+		djnz .loop1
 
-;		di							; End test
-;		im   1						; Switch back to IM 1
-;		ei							; Now interrupts are permitted again
-;		ret
-	ld   hl, (#.v1_rstBackup)
-	ld   (#0x38+1), hl
-	ei
+		ld   hl, (#.rstBackup)		; End test
+		ld   (#0x38+1), hl			; Restore original interrupt hook
+		ei
 
-	ld   hl, #_int_counter			; Discart the first interrupt
-	dec  (hl)
+		ld   hl, #_int_counter		; Discart the first interrupt from counter
+		dec  (hl)
 
-	ret
+		ret
 
 	// ######### INTERRUPT ROUTINE #########
-	.v1_intRoutine:					; Code is now here
+	.intRoutine:					; Code is now here
 		push hl						; Save registers that are modified
 		push af
 
 		in   a, (0x99)				; Read S#0
-		bit  7, a					; Does INT originate from VDP?
-		jr   z, .v1_notFromVDP		; No -> go to exit
+		and  #0b10000000			; Does INT originate from VDP?
+		jr   z, .notFromVDP			; No -> go to exit
 
 		ld   hl, (_int_counter)		; Nr. of interrupts counter
 		inc  hl						; Increase counter by one
 		ld   (_int_counter), hl
 
-	.v1_notFromVDP:
+	.notFromVDP:
 		pop  af						; Restore modified registers
 		pop  hl
 
-		ld (_counterRestHL), hl			; Save HL rest of last interrupt
+		ld (_counterRestHL), hl		; Save HL rest of last interrupt
 
 		ei							; Interrupts are permitted again
-		ret						; Return to main program
-	.v1_intRoutEnd:						; For Length of routine code
+		ret							; Return to main program
+	.intRoutEnd:					; For Length of routine code
 
-	.v1_rstBackup:
+	.rstBackup:
 		.ds 2
 	__endasm;
 }
 
-void calculateMhz_v1()
-{
-	isNTSC = detectNTSC();
-	uint32_t reference = isNTSC ? 905903910L : 758325780L;		// constants for 3.58 MHz NTSC/PAL (fixed point 1e6)
-	uint32_t offset = isNTSC ? 8477L : 6622L;					// offsets for NTSC/PAL (fixed point 1e6)
-
-	calculatedFreq = (reference / int_counter * 1000.f + offset) / 1000000.f;
-}
-
-
-// ========================================================
-void setCustomInterrupt_v2() __naked
-{
-	__asm
-		ld   hl, #0						; Counter = 0
-		ld   (_int_counter), hl
-		ld   (_int_counter+2), hl
-		ld   (_counterRestHL), hl
-		ld   (_counterRestHL+2), hl
-
-;		ld   hl, #intVecTabAd		; Generate IVT here
-;		ld   (hl), #intRoutHalfAd	; Use this as high and low address part
-;		ld   d, h					; Copy destination pointer from
-;		ld   e, l					;   the source pointer
-;		inc  de						; Destination 1 byte further
-;		ld   bc, #128*2				; 128 vectors, 1 byte extra for 256th
-;		ldir						; Generate table
-
-;		ld   hl, #.v2_intRoutine				; Routine for IM 2
-;		ld   de, #intRoutStart					; Put routine here
-;		ld   bc, #.v2_intRoutEnd-.v2_intRoutine	; Length of the routine
-;		ldir									; Copy the routine
-
-		ld   a, (RG9SAV)
-		bit  1, a
-		jr   z, .v2_ntsc
-		ld   a, #88					; 192 - PAL_LINES / 2 / 3
-		ld   (.v2_secondLine), a
-		ld   a, #240				; 192 - PAL_LINES / 2 / 3 * 2
-		ld   (.v2_firstLine), a
-		jr   .v2_setline
-	.v2_ntsc:
-		ld   a, #105				; 192 - NTSC_LINES / 2 / 3
-		ld   (.v2_secondLine), a
-		ld   a, #17					; 192 - NTSC_LINES / 2 / 3 * 2
-		ld   (.v2_firstLine), a
-	.v2_setline:
-
-		ld   b, a					; Set the next interrupt line
-		ld   c, #19					; Register #19 (Interrupt line reg., MSX2 and higher)
-		call WRTVDP_without_DI_EI	; Write B value to C register
-
-		ld   b, #0					; Set display offset to 0
-		ld   c, #23					; Register #23 (Display offset reg., MSX2 and higher)
-		call WRTVDP_without_DI_EI	; Write B value to C register
-
-;		call _waitVBLANK
-	halt
-
-		ld   a, (RG0SAV)			; Enabling line interrupts
-		or   #16					; Set bit 4
-		ld   (RG0SAV), a
-		ld   b, a					; data to write
-		ld   c, #0					; Register #0 (Mode reg. 0, MSX2 and higher)
-		call WRTVDP_without_DI_EI	; Write B value to C register
-
-;		di							; No interrupts during switch
-;		ld   a,#intVecHalfAd		; Use this as high address part
-;		ld   i, a					; Set high address part
-;		im   2						; Switch to IM 2
-;		ei							; Enable interrupts
-	di
-	ld   hl, (#0x38+1)
-	ld   (#.v2_rstBackup), hl
-	ld   hl, #.v2_intRoutine
-	ld   (#0x38+1), hl
-	ei
-		halt						; Important to have stable values (skip first interrupt)
-
-		xor  a
-		ld   b, #LOOP2
-	.v2_loop1:
-		ld   hl, #0xffff
-	.v2_loop2:
-		dec  hl
-		cp   h
-		jp   nz, .v2_loop2
-		cp   l
-		jp   nz, .v2_loop2
-		djnz .v2_loop1
-
-		di							; End test
-
-		ld   a, (RG0SAV)			; Before we can exit the program we have to disable line interrupts
-		and  #255-16				; Disable line interrupts
-		ld   (RG0SAV), a
-		ld   b, a					; data to write
-		ld   c, #0					; register number (9 to 24	Control registers 8 to 23	Read / Write	MSX2 and higher)
-		call WRTVDP_without_DI_EI	; Write B value to C register
-		in   a, (0x99)				; Read S#0
-
-;		im   1						; Switch back to IM 1
-;		ei							; Now interrupts are permitted again
-;		ret
-	ld   hl, (#.v2_rstBackup)
-	ld   (#0x38+1), hl
-	ei
-
-	ld   hl, #_int_counter			; Discart the first interrupt VBLANK->HBLANK
-	dec  (hl)
-
-	ret
-
-	// ######### INTERRUPT ROUTINE #########
-	.v2_intRoutine:					; Code is now here
-		push hl						; Save registers that are modified
-		push af
-		ld   h, #1
-
-;ld  a,#0xff
-;out (0x99),a
-;ld  a,#0x87
-;out (0x99),a
-
-		in   a,(0x99)				; Read S#0 (VDP Status Register 0)
-		and  #0b10000000			; Does INT originated by VBLANK?
-		jr   z, .v2_noVBLANK
-
-		ld   a, (.v2_firstLine)		; R#19 = 192 - [NTSC/PAL]_LINES / 2 / 3 * 2
-		out  (0x99),a
-		ld   a, #19 + 0x80
-		out  (0x99), a
-		dec  h
-
-	.v2_noVBLANK:
-		ld   a, #1					; Select VDP Status Register 1
-		out  (0x99), a
-		ld   a, #15 + 0x80			; Prepare read (R#15 = 1)
-		out  (0x99), a
-		in   a, (0x99)				; Read S#1 (VDP Status Register 1)
-		and  #0b00000001			; Does INT originated by HBLANK?
-		jr   z, .v2_noHBLANK
-
-		ld   a, (.v2_secondLine)	; R#19 = 192 - [NTSC/PAL]_LINES / 2 / 3
-		out  (0x99),a
-		ld   a, #19 + 0x80
-		out  (0x99), a
-		dec  h
-
-	.v2_noHBLANK:
-		jr   nz, .v2_notFromVDP		; No -> skip counter increase
-
-		ld   hl, (_int_counter)		; Nr. of interrupts counter
-		inc  hl						; Increase counter by one
-		ld   (_int_counter), hl
-
-		xor  a						; Select VDP Status Register 0
-		out  (0x99), a
-		ld   a, #15 + 0x80			; Prepare read in next interrupt (R#15 = 0)
-		out  (0x99), a
-
-	.v2_notFromVDP:
-
-;ld  a,#0xf4
-;out (0x99),a
-;ld  a,#0x87
-;out (0x99),a
-
-		pop  af						; Restore modified registers
-		pop  hl
-
-		ld (_counterRestHL), hl			; Save HL rest of last interrupt
-
-		ei							; Interrupts are permitted again
-		ret							; Return to main program
-	.v2_intRoutEnd:					; For Length of routine code
-
-	.v2_firstLine:
-		.ds  1
-	.v2_secondLine:
-		.ds  1
-	.v2_rstBackup:
-		.ds  2
-
-	WRTVDP_without_DI_EI:
-		ld   a, b
-		out  (0x99),a
-		ld   a, c
-		or   #0x80
-		out  (0x99), a
-		ret
-	__endasm;
-}
-
-void calculateMhz_v2()
-{
-	isNTSC = detectNTSC();
-	uint32_t reference = isNTSC ? 2722514323L : 2278756446L;	// constants for 3.58 MHz NTSC/PAL (fixed point 1e6)
-	uint32_t offset = isNTSC ? 54695L : 42505L;					// offsets for NTSC/PAL (fixed point 1e6)
-
-	calculatedFreq = (reference / int_counter * 1000.f + offset) / 1000000.f;
-}
-
 void calculateCounterRest() {
 	// Calculate decimals with counterRestHL
-	int_counter = (counterRestHL * 1000L / (((65535L*LOOP2)-counterRestHL)/int_counter)) + int_counter * 1000L;
-	calculateMhz_ptr();
+	int_counter = (counterRestHL * 1000000ULL / (((655350ULL)-counterRestHL)/int_counter)) + int_counter * 1000000ULL;
+}
+
+void calculateMhz()
+{
+	isNTSC = detectNTSC();
+	uint64_t reference = isNTSC ? 905922538492488ULL : 758316840607900ULL;	// constants for 3.58 MHz NTSC/PAL (fixed point 1e6)
+	uint64_t offset = isNTSC ? 8437ULL : 6724ULL;						// offsets for NTSC/PAL (fixed point 1e6)
+
+	calculatedFreq = (uint32_t)(reference / int_counter + offset) / 1000000.f;
 }
 
 
@@ -791,16 +602,10 @@ void commandLine(char type)
 	*((char*)&authorStr[11]) = '\0';
 	cprintf("%s (by %s)\n", &titleStr[2], &authorStr[2]);
 
-	if (type == '1') {
-		setCustomInterrupt_ptr = setCustomInterrupt_v1;
-		calculateMhz_ptr = calculateMhz_v1;
-	} else if (type == '2' && vdpType >= VDP_V9938) {
-		setCustomInterrupt_ptr = setCustomInterrupt_v2;
-		calculateMhz_ptr = calculateMhz_v2;
-	} else {
-		die("\nz80bench [1|2]\n\n"
-			"  1: Debug TestLoop V1\n"
-			"  2: Debug TestLoop V2 (V9938 or higher)\n");
+	if (type != 'd' && type != 'D') {
+		die("\nz80bench [d]\n\n"
+			"  <none>: Run GUI mode (default)\n"
+			"  d:      Run Command line Debug mode\n");
 	}
 
 	// Machine type
@@ -815,24 +620,29 @@ void commandLine(char type)
 	if (turboRmode) {
 		cprintf("%s (%s)", cpuTypesStr[cpuType], turboRmodeStr[turboRmode]);
 	} else {
-		cputs(cpuTypesStr[cpuType]);
+		if (cpuType == CPU_Z80) {
+			cprintf("%s(%s)", cpuTypesStr[cpuType], cmosStr[isCMOS]);
+		} else {
+			cputs(cpuTypesStr[cpuType]);
+		}
 	}
 	putch('\n');
 	// Video mode
 	cputs(infoVdpTypeStr);
 	cprintf("%s %s\n", vdpTypeStr[vdpType], vdpModesStr[detectNTSC()]);
 	
-	// CPU speed
-	cprintf("Testing TestLoop V%cb4:\n", type);
+	// CPU speed test
+	cputs("Running TestLoop v"TESTLOOP_VERSION":\n");
 
-	setCustomInterrupt_ptr();
+	doInterruptLoop();
 	calculateCounterRest();
+//	calculateMhz();
 
 	uint32_t cnt = int_counter;
-	for (int32_t i=cnt+100; i>=cnt-100; i+=-50) {
+	for (int32_t i=cnt+20000; i>=cnt-20000; i+=-10000) {
 		int_counter = i;
-		calculateMhz_ptr();
-		formatFloat(calculatedFreq, floatStr, 4);
+		calculateMhz();
+		formatFloat(calculatedFreq, floatStr, 6);
 		cprintf("%s %lu: %s MHz\n", i==cnt?"->":"  ", i, floatStr);
 	}
 }
@@ -880,8 +690,9 @@ int main(char **argv, int argc) __sdcccall(0)
 
 //int_counter = 220;
 	do {
-		setCustomInterrupt_ptr();
+		doInterruptLoop();
 		calculateCounterRest();
+		calculateMhz();
 		drawCpuSpeed_ptr();
 		click();
 //getch();
