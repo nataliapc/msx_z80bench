@@ -462,6 +462,22 @@ void drawCpuSpeed()
 {
 	char *p;
 
+	if (cpuType == CPU_Z280) {
+		// Z280 speed test not supported
+		csprintf(heap_top, "\x86 N/A \x87\x80\x80");
+		putstrxy(50,1, heap_top);
+		
+		putstrxy(65,3, "N/A ");
+		
+		// Show message instead of speed graph
+		putstrxy(GR_X+1, GR_Y+1, "Z280 speed test not supported (prevents freeze)");
+		putstrxy(GR_X+1, GR_Y+2, "Interrupt handling incompatible with test loop");
+		
+		// Clear speed display in top panel
+		putstrxy(17,5, "N/A MHz   ");
+		return;
+	}
+
 	// Draw counter in top-right border
 	csprintf(heap_top, "\x86 %lu \x87\x80\x80", int_counter);
 	putstrxy(50,1, heap_top);
@@ -634,16 +650,21 @@ void commandLine(char type)
 	// CPU speed test
 	cputs("Running TestLoop v"TESTLOOP_VERSION":\n");
 
-	doInterruptLoop();
-	calculateCounterRest();
-//	calculateMhz();
+	if (cpuType == CPU_Z280) {
+		cputs("Z280 speed test not supported (interrupt handling incompatible)\n");
+		cputs("Z280 detected but speed measurement skipped to prevent freeze\n");
+	} else {
+		doInterruptLoop();
+		calculateCounterRest();
+//		calculateMhz();
 
-	uint32_t cnt = int_counter;
-	for (int32_t i=cnt+20000; i>=cnt-20000; i+=-10000) {
-		int_counter = i;
-		calculateMhz();
-		formatFloat(calculatedFreq, floatStr, 6);
-		cprintf("%s %lu: %s MHz\n", i==cnt?"->":"  ", i, floatStr);
+		uint32_t cnt = int_counter;
+		for (int32_t i=cnt+20000; i>=cnt-20000; i+=-10000) {
+			int_counter = i;
+			calculateMhz();
+			formatFloat(calculatedFreq, floatStr, 6);
+			cprintf("%s %lu: %s MHz\n", i==cnt?"->":"  ", i, floatStr);
+		}
 	}
 }
 
@@ -690,9 +711,17 @@ int main(char **argv, int argc) __sdcccall(0)
 
 //int_counter = 220;
 	do {
-		doInterruptLoop();
-		calculateCounterRest();
-		calculateMhz();
+		if (cpuType == CPU_Z280) {
+			// Z280 speed test not supported, just wait and show static message
+			for (volatile int i = 0; i < 50000; i++);  // Simple delay
+			// Set static values to prevent display issues
+			int_counter = 0;
+			calculatedFreq = 0.0f;
+		} else {
+			doInterruptLoop();
+			calculateCounterRest();
+			calculateMhz();
+		}
 		drawCpuSpeed_ptr();
 		click();
 //getch();
