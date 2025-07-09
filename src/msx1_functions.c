@@ -7,6 +7,11 @@
 #include "utils.h"
 #include "conio_aux.h"
 
+// CPU Type constants (must match z80bench.c)
+#define CPU_Z80		0
+#define CPU_R800	1
+#define CPU_Z280	2
+
 
 // ========================================================
 extern uint32_t int_counter;
@@ -163,6 +168,22 @@ void msx1_drawPanel()
 void msx1_drawCpuSpeed()
 {
 	char *p;
+
+	if (cpuType == CPU_Z280) {
+		// Z280 speed test not supported
+		gotoxy(3,24);
+		cprintf("\x86 N/A \x87\x80\x80");
+		
+		putstrxy(26,5, "N/A ");
+		
+		// Show message instead of speed graph
+		putstrxy(GR_X+1, GR_Y+1, "Z280 not supported");
+		putstrxy(GR_X+1, GR_Y+2, "Prevents freeze");
+		
+		// Clear speed display in top panel
+		putstrxy(15,5, "N/A MHz  ");
+		return;
+	}
 
 	// Draw counter in top-right border
 	gotoxy(3,24);
