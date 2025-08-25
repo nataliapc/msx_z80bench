@@ -636,7 +636,6 @@ void commandLine(char type)
 
 	doInterruptLoop();
 	calculateCounterRest();
-//	calculateMhz();
 
 	uint32_t cnt = int_counter;
 	for (int32_t i=cnt+20000; i>=cnt-20000; i+=-10000) {

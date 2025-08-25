@@ -16,12 +16,14 @@ The available options vary depending on which _MSX_ machine you run the program 
 
 The visual presentation and operation is based on similar programs that were developed for old _PCs_ under _MS-DOS_.
 
+**🌟 You can help to improve this project by [starring](#more-stars) it! 🌟**
+
 ![ocminfo panels](.images/screen.jpg)
 
 ## Displayed Information
 
 - **Machine:** MSX generation obtained from _BIOS ROM_ and manufacturer if available obtained from [_expanded I/O ports_](https://map.grauw.nl/resources/msx_io_ports.php#expanded_io).
-- **CPU Type:** detection is performed by checking how specific opcodes behave for each CPU. `Z80`, `R800`, and `Z280` (experimental) are detected. For Z80 it also detects if it's NMOS or CMOS.
+- **CPU Type:** detection is performed by checking how specific opcodes behave for each CPU. `Z80`, `R800`, and `Z280` (experimental) are detected. For `Z80` it also detects if it's `NMOS` or `CMOS`.
 - **CPU Speed:** speed calculated by the test loop.
 - **VDP Type:** video chip detection (_TMS9918, V9938, V9958_). Output frequency is also shown (_NTSC/PAL_).
 
@@ -41,7 +43,7 @@ The keys must be held down until you hear a click sound, which is when each of t
 
 Clock measurement is approximate, and may vary when using external RAM mappers.
 
-The number that appears in the border indicates the number of interrupts (*10e6) that occurred during each iteration of the test loop.
+The number that appears in the border indicates the number of interrupts (x 1e6) that occurred during each iteration of the test loop.
 
 ## Acknowledgments
 
@@ -49,3 +51,12 @@ Thank you very much to everyone who has been testing the program so that it coul
 
 ### I hope you all find this useful! :D
 NataliaPC
+
+## More stars!
+
+Please give us a star on [GitHub](https://github.com/nataliapc/msx_z80bench) if you like this project.
+
+[![Star History Chart](https://api.star-history.com/svg?repos=nataliapc/msx_z80bench&type=Date&theme=dark)](https://www.star-history.com/#nataliapc/msx_z80bench&Date)
+## Star History
+
+---
