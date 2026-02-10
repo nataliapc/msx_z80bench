@@ -45,6 +45,40 @@ Clock measurement is approximate, and may vary when using external RAM mappers.
 
 The number that appears in the border indicates the number of interrupts (x 1e6) that occurred during each iteration of the test loop.
 
+## Building from Source
+
+### Prerequisites
+
+- Docker (recommended) or SDCC 4.2.0 installed locally
+- Make
+
+### Building with Docker
+
+The project includes a Dockerfile that contains all necessary tools including SDCC and hex2bin converter.
+
+1. **Build the Docker image:**
+   ```bash
+   docker build -t msx_z80bench:sdcc-4.2.0 .
+   ```
+
+2. **Build the project:**
+   ```bash
+   make all
+   ```
+   
+   This will compile the source code and generate `z80bench.com` in the `dsk/` directory.
+
+3. **Clean build artifacts:**
+   ```bash
+   make clean      # Clean everything
+   make cleanobj   # Clean only object files
+   make cleanlibs  # Clean only libraries
+   ```
+
+### Building without Docker
+
+If you have SDCC installed locally, modify the Makefile to use local tools instead of Docker containers.
+
 ## Acknowledgments
 
 Thank you very much to everyone who has been testing the program so that it could become a reality.

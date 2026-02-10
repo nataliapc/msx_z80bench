@@ -1,8 +1,15 @@
-.PHONY: clean test release
+.PHONY: clean test release docker-image
 
 SDCC_VER := 4.2.0
-DOCKER_IMG = nataliapc/sdcc:$(SDCC_VER)
+DOCKER_IMG = msx_z80bench:sdcc-$(SDCC_VER)
 DOCKER_RUN = docker run -i --rm -u $(shell id -u):$(shell id -g) -v .:/src -w /src $(DOCKER_IMG)
+
+# Ensure Docker image exists
+docker-image:
+	@if [ -z "$$(docker images -q $(DOCKER_IMG) 2>/dev/null)" ]; then \
+		echo "$(COL_YELLOW)######## Building Docker image $(DOCKER_IMG)$(COL_RESET)"; \
+		docker build -t $(DOCKER_IMG) .; \
+	fi
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
@@ -18,7 +25,7 @@ endif
 AS = $(DOCKER_RUN) sdasz80
 AR = $(DOCKER_RUN) sdar
 CC = $(DOCKER_RUN) sdcc
-HEX2BIN = hex2bin
+HEX2BIN = $(DOCKER_RUN) hex2bin
 MAKE = make -s --no-print-directory
 EMUSCRIPTS = -script ./emulation/boot.tcl
 
@@ -73,34 +80,34 @@ $(LIBDIR)/dos.lib: $(EXTERNALS)/sdcc_msxdos/src/* $(EXTERNALS)/sdcc_msxdos/inclu
 	@cp $(EXTERNALS)/sdcc_msxdos/lib/dos.lib $(LIBDIR)
 #	@$(AR) -d $@ dos_putchar.c.rel ;
 
-$(LIBDIR)/utils.lib: $(patsubst $(SRCLIB)/%, $(OBJDIR)/%.rel, $(wildcard $(SRCLIB)/utils_*))
+$(LIBDIR)/utils.lib: $(patsubst $(SRCLIB)/%, $(OBJDIR)/%.rel, $(wildcard $(SRCLIB)/utils_*)) | docker-image
 	$(OLIB_GUARD)
 	@echo "$(COL_WHITE)######## Compiling $@$(COL_RESET)"
 	@$(LIB_GUARD)
 	@$(AR) $(LDFLAGS) $@ $^ ;
 	@$(AR) -d $@ utils_exit.c.rel ;
 
-$(OBJDIR)/%.s.rel: $(SRCDIR)/%.s
+$(OBJDIR)/%.s.rel: $(SRCDIR)/%.s | docker-image
 	@echo "$(COL_BLUE)#### ASM $@$(COL_RESET)"
 	@$(ODIR_GUARD)
 	@$(AS) -go $@ $^ ;
 
-$(OBJDIR)/%.c.rel: $(SRCDIR)/%.c
+$(OBJDIR)/%.c.rel: $(SRCDIR)/%.c | docker-image
 	@echo "$(COL_BLUE)#### CC $@$(COL_RESET)"
 	@$(ODIR_GUARD)
 	@$(CC) -I$(INCDIR) $(CCFLAGS) -c -o $@ $^ ;
 
-$(OBJDIR)/%.c.rel: $(SRCLIB)/%.c
+$(OBJDIR)/%.c.rel: $(SRCLIB)/%.c | docker-image
 	@echo "$(COL_BLUE)#### CC $@$(COL_RESET)"
 	@$(DIR_GUARD)
 	@$(CC) $(CCFLAGS) $(FULLOPT) -I$(INCDIR) -c -o $@ $^ ;
 
-$(OBJDIR)/%.s.rel: $(SRCLIB)/%.s
+$(OBJDIR)/%.s.rel: $(SRCLIB)/%.s | docker-image
 	@echo "$(COL_BLUE)#### ASM $@$(COL_RESET)"
 	@$(DIR_GUARD)
 	@$(AS) -go $@ $^ ;
 
-$(OBJDIR)/$(PROGRAM): $(CRT) $(LIBS) $(addprefix $(OBJDIR)/,$(subst .c,.c.rel,$(SRC)))
+$(OBJDIR)/$(PROGRAM): $(CRT) $(LIBS) $(addprefix $(OBJDIR)/,$(subst .c,.c.rel,$(SRC))) | docker-image
 	@echo "$(COL_YELLOW)######## Compiling $@$(COL_RESET)"
 	@$(CC) $(CCFLAGS) -I$(INCDIR) -L$(LIBDIR) $^ -o $(subst .com,.ihx,$@) ;
 	@$(HEX2BIN) -e com $(subst .com,.ihx,$@)
@@ -138,4 +145,4 @@ test: all
 #	openmsx -machine Sony_HB-F1XD -ext debugdevice -diska $(DSKDIR) $(EMUSCRIPTS)
 #	openmsx -machine Spectravideo_SVI-738 -ext debugdevice -diska $(DSKDIR) $(EMUSCRIPTS)
 #	openmsx -machine Yamaha_CX11 -ext Mitsubishi_ML-30DC_ML-30FD -ext ram512k -ext debugdevice -diska $(DSKDIR) $(EMUSCRIPTS)
-	openmsx -machine turbor -ext debugdevice -diska $(DSKDIR) $(EMUSCRIPTS)
+#	openmsx -machine turbor -ext debugdevice -diska $(DSKDIR) $(EMUSCRIPTS)
