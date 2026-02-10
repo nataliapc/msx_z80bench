@@ -1,7 +1,7 @@
 .PHONY: clean test release
 
 SDCC_VER := 4.2.0
-DOCKER_IMG = nataliapc/sdcc:$(SDCC_VER)
+DOCKER_IMG = msx_z80bench:sdcc-$(SDCC_VER)
 DOCKER_RUN = docker run -i --rm -u $(shell id -u):$(shell id -g) -v .:/src -w /src $(DOCKER_IMG)
 
 UNAME_S := $(shell uname -s)
@@ -18,7 +18,7 @@ endif
 AS = $(DOCKER_RUN) sdasz80
 AR = $(DOCKER_RUN) sdar
 CC = $(DOCKER_RUN) sdcc
-HEX2BIN = hex2bin
+HEX2BIN = $(DOCKER_RUN) hex2bin
 MAKE = make -s --no-print-directory
 EMUSCRIPTS = -script ./emulation/boot.tcl
 

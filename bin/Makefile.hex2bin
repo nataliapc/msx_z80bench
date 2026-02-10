@@ -1,0 +1,14 @@
+CC = gcc
+CFLAGS = -O2 -Wall
+TARGET = hex2bin
+
+all: $(TARGET)
+
+$(TARGET): hex2bin.c
+	$(CC) $(CFLAGS) -o $(TARGET) hex2bin.c
+
+clean:
+	rm -f $(TARGET)
+
+install: $(TARGET)
+	install -m 755 $(TARGET) /usr/local/bin/
