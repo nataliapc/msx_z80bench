@@ -2,3 +2,4 @@ out
 libs/*.lib
 dsk
 assets
+.agents
