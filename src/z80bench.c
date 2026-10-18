@@ -25,6 +25,7 @@ void (*drawCpuSpeed_ptr)();
 void (*drawPanel_ptr)();
 void (*showCPUtype_ptr)();
 void (*showVDPtype_ptr)();
+void (*showTestType_ptr)();
 void (*textattr_ptr)(uint16_t attr) __z88dk_fastcall;
 void (*textblink_ptr)(uint8_t x, uint8_t y, uint16_t length, bool enabled);
 
@@ -36,6 +37,15 @@ float calculatedFreq = 0;
 uint8_t speedLineScale = 1;
 uint64_t int_counter = 0;
 uint64_t counterRestHL = 0;
+
+/**
+ * Selected speed test.
+ * TEST_CPU runs the register-only TestLoop. TEST_MEM8 and TEST_MEM16 move data
+ * through RAM with 8-bit (LD A,(DE) / LD (DE),A) and 16-bit (POP DE / PUSH DE)
+ * accesses at an even address, so CPUs with a 16-bit data bus can show it.
+ */
+uint8_t testType = TEST_CPU;
+static uint8_t memTestBuffer[16];		// Stack & data for the memory tests
 
 /**
  * Pointer to a string buffer used to hold a floating-point value as a string.
@@ -124,6 +134,7 @@ void drawCpuSpeed();
 void drawPanel();
 void showCPUtype();
 void showVDPtype();
+void showTestType();
 bool detectNTSC();
 
 
@@ -158,6 +169,7 @@ static void checkPlatformSystem()
 		drawPanel_ptr = msx1_drawPanel;
 		showCPUtype_ptr = msx1_showCPUtype;
 		showVDPtype_ptr = msx1_showVDPtype;
+		showTestType_ptr = msx1_showTestType;
 		textattr_ptr = msx1_textattr;
 		textblink_ptr = msx1_textblink;
 	} else {
@@ -168,6 +180,7 @@ static void checkPlatformSystem()
 		drawPanel_ptr = drawPanel;
 		showCPUtype_ptr = showCPUtype;
 		showVDPtype_ptr = showVDPtype;
+		showTestType_ptr = showTestType;
 		textattr_ptr = textattr;
 		textblink_ptr = textblink;
 	}
@@ -298,8 +311,10 @@ void showVDPtype()
 
 uint16_t formatSpeedLine(char *floatStr, float speed)
 {
-	uint16_t speedUnits = (uint16_t)(speed * 2.f / speedLineScale);
-	float speedDecimal = speed / speedLineScale - speedUnits * 0.5f;
+	speed *= speedFactors[testType];			// MHz to the unit of the test
+	float chars = speed / (speedPerChar[testType] * speedLineScale);
+	uint16_t speedUnits = (uint16_t)chars;
+	float speedDecimal = (chars - speedUnits) * 0.5f;
 	char *q = heap_top, *p;
 
 	// Prepare line buffer
@@ -315,8 +330,8 @@ uint16_t formatSpeedLine(char *floatStr, float speed)
 	*++q = ' ';
 	q++;
 
-	// Print speed numbers
-	p = formatFloat(speed, floatStr, 2);
+	// Print speed numbers (formatFloat truncates: round the integer kB/s)
+	p = formatFloat(speedDecimals[testType] ? speed : speed + 0.5f, floatStr, speedDecimals[testType]);
 	memcpy(q, floatStr, p-floatStr);
 
 	return q-heap_top + p-floatStr;
@@ -327,28 +342,41 @@ void updateScale()
 	char *floatStr = malloc(FLOATSTR_LEN);
 	char *p = heap_top;
 
-	// X labels
+	// X labels (a tick every 10 characters)
+	// MHz: "5MHz", "10MHz"... | kB/s: numbers ending at their tick, the unit is in the Y label
 	memset(heap_top, ' ', 54);
-	char mhz[] = "MHz";
-	uint8_t offset = 0;
 	for (uint8_t i=1; i<7; i++) {
-		if (i==6) {
-			*mhz = '\0';
-			offset++;
+		char *end = formatFloat(i*speedLineScale*10*speedPerChar[testType], floatStr, 0);
+		if (testType == TEST_CPU) {
+			csprintf(p + (i==6), "%s%s", floatStr, i<6 ? "MHz" : "");
+		} else {
+			int8_t x = i*10 - 7 - (end - floatStr);
+			memcpy(heap_top + (x < 0 ? 0 : x), floatStr, end - floatStr);
 		}
-		formatFloat(i*speedLineScale*5.f, floatStr, 0);
-		csprintf(p+offset, "%s%s", floatStr, mhz);
 		p+=10;
 	}
 	putlinexy(GR_X+8, GR_Y+GR_H+1, 54, heap_top);
 
 	// Draw fixed graphs
 	formatSpeedLine(floatStr, MSX_CLOCK);		// 3.57 MHz
-	putlinexy(GR_X+1, GR_Y+4, 60, heap_top);
-	formatSpeedLine(floatStr, MSX_CLOCK*1.5f);	// 5.36 MHz
+	putlinexy(GR_X+1, GR_Y+3, 60, heap_top);
+	formatSpeedLine(floatStr, MSX_CLOCK*1.5f);	// 5.36 MHz (a Z80: same for every test)
+	putlinexy(GR_X+1, GR_Y+5, 60, heap_top);
+	formatSpeedLine(floatStr, turboRSpeeds[testType]);	// turboR R800 for the selected test
 	putlinexy(GR_X+1, GR_Y+7, 60, heap_top);
 
 	free(floatStr);
+}
+
+void showTestType()
+{
+	// The labels, units, scale and turboR bar follow the selected test
+	putstrxy(LABELSY_X, LABELSY_Y+1, testTypesStr[testType]);
+	putstrxy(LABELSY_X, LABELSY_Y+2, speedAxisStr[testType]);
+	csprintf(heap_top, "%s--                    ", speedLabelsStr[testType]);
+	heap_top[34] = '\0';						// Up to the frame border
+	putstrxy(5,5, heap_top);
+	updateScale();
 }
 
 void drawPanel()
@@ -454,6 +482,9 @@ void drawPanel()
 		putstrxy(42,23, "Tides Speed");
 	}
 
+	putstrxy(55,22, "[F5] Cycle");
+	putstrxy(55,23, "Speed test");
+
 	putstrxy(68,22, "[F6] Toggle");
 	putstrxy(68,23, "NTSC/PAL");
 
@@ -502,11 +533,10 @@ void drawCpuSpeed()
 	putlinexy(GR_X+1, GR_Y+1, 60, heap_top);
 	textblink(GR_X+1, GR_Y+1, (len < 60 ? len : 60), true);
 
-	// Print CPU speed in top panel
-	p = floatStr;
-	while (*p) p++;
-	memcpy(p, " MHz   ", 8);
-	putstrxy(17,5, floatStr);
+	// Print CPU/memory speed in top panel
+	csprintf(heap_top, "%s %s            ", floatStr, speedUnitsStr[testType]);
+	heap_top[22] = '\0';						// Up to the frame border
+	putstrxy(17,5, heap_top);
 }
 
 // ========================================================
@@ -534,6 +564,10 @@ void doInterruptLoop() __naked
 		ei
 		halt						; Important to have stable values (skip first interrupt)
 
+		ld   a, (_testType)			; Select the test loop
+		or   a
+		jr   nz, .memTests
+
 		xor  a						; Test loop
 		ld   b, #LOOP2
 	.loop1:
@@ -546,6 +580,7 @@ void doInterruptLoop() __naked
 		jp   nz, .loop2
 		djnz .loop1
 
+	.testEnd:
 		ld   hl, (#.rstBackup)		; End test
 		ld   (#0x38+1), hl			; Restore original interrupt hook
 		ei
@@ -554,6 +589,66 @@ void doInterruptLoop() __naked
 		dec  (hl)
 
 		ret
+
+	// ######### MEMORY TESTS #########
+	// HL counts the inner iterations like in the TestLoop, so the interrupt
+	// routine saves the rest of the last interrupt the same way.
+	// Both inner loops start at an even address: .odd puts the outer label at
+	// an odd offset and LD HL,nn (3 bytes) follows it. The offsets are absolute
+	// parity because this module starts _CODE at --code-loc 0x0180. The gap that
+	// .odd may leave is padded with 0xFF (RST 38h) by hex2bin, so it always
+	// follows an unconditional jump and is never executed.
+	.memTests:						; A = testType
+		ld   (#.spBackup), sp		; Use memTestBuffer as stack: the interrupt routine
+		ld   hl, #_memTestBuffer+10	; pushes 6 bytes below it, POP DE reads 2 above
+		res  0, l					; 16-bit aligned (even) address
+		ld   sp, hl
+		ex   de, hl					; DE = same aligned address for the 8-bit test
+		ld   b, #LOOP2_MEM
+		dec  a
+		jr   nz, .mem16Outer
+		jr   .mem8Outer
+
+		.odd
+	.mem8Outer:						; 8-bit test: 8 byte accesses per iteration
+		ld   hl, #0xffff
+	.mem8Loop:
+		ld   a, (de)
+		ld   (de), a
+		ld   a, (de)
+		ld   (de), a
+		ld   a, (de)
+		ld   (de), a
+		ld   a, (de)
+		ld   (de), a
+		dec  hl
+		ld   a, h
+		or   l
+		jp   nz, .mem8Loop
+		djnz .mem8Outer
+		jr   .memEnd
+
+		.odd
+	.mem16Outer:					; 16-bit test: 8 word accesses per iteration
+		ld   hl, #0xffff
+	.mem16Loop:
+		pop  de
+		push de
+		pop  de
+		push de
+		pop  de
+		push de
+		pop  de
+		push de
+		dec  hl
+		ld   a, h
+		or   l
+		jp   nz, .mem16Loop
+		djnz .mem16Outer
+
+	.memEnd:
+		ld   sp, (#.spBackup)		; Restore the program stack
+		jr   .testEnd
 
 	// ######### INTERRUPT ROUTINE #########
 	.intRoutine:					; Code is now here
@@ -580,18 +675,29 @@ void doInterruptLoop() __naked
 
 	.rstBackup:
 		.ds 2
+	.spBackup:
+		.ds 2
 	__endasm;
 }
 
 void calculateCounterRest() {
 	// Calculate decimals with counterRestHL
-	int_counter = (counterRestHL * 1000000ULL / (((655350ULL)-counterRestHL)/int_counter)) + int_counter * 1000000ULL;
+	uint64_t iterations = (testType == TEST_CPU ? LOOP2 : LOOP2_MEM) * 65535ULL;
+	int_counter = (counterRestHL * 1000000ULL / ((iterations-counterRestHL)/int_counter)) + int_counter * 1000000ULL;
 }
+
+// Constants for 3.58 MHz NTSC/PAL (fixed point 1e6), one per test.
+// The memory tests scale the TestLoop constant by their MSX Z80 T-states (M1 wait included):
+//   TestLoop: 10*(65535*23 + 256*16 + 11) + 9*14 + 9 = 15114255
+//   Mem 8bit:  2*(65535*92 + 11) + 14 + 9          = 12058485
+//   Mem 16bit: 2*(65535*120 + 11) + 14 + 9         = 15728445
+static const uint64_t referenceNTSC[TESTS_NUM] = { 905922538492488ULL, 722764922357972ULL, 942736034355612ULL };
+static const uint64_t referencePAL[TESTS_NUM]  = { 758316840607900ULL, 605001850750682ULL, 789132161662955ULL };
 
 void calculateMhz()
 {
 	isNTSC = detectNTSC();
-	uint64_t reference = isNTSC ? 905922538492488ULL : 758316840607900ULL;	// constants for 3.58 MHz NTSC/PAL (fixed point 1e6)
+	uint64_t reference = isNTSC ? referenceNTSC[testType] : referencePAL[testType];
 	uint64_t offset = isNTSC ? 8437ULL : 6724ULL;						// offsets for NTSC/PAL (fixed point 1e6)
 
 	calculatedFreq = (uint32_t)(reference / int_counter + offset) / 1000000.f;
@@ -634,18 +740,20 @@ void commandLine(char type)
 	cputs(infoVdpTypeStr);
 	cprintf("%s %s\n", vdpTypeStr[vdpType], vdpModesStr[detectNTSC()]);
 	
-	// CPU speed test
-	cputs("Running TestLoop v"TESTLOOP_VERSION":\n");
+	// Speed tests
+	for (testType = TEST_CPU; testType < TESTS_NUM; testType++) {
+		cprintf("Running TestLoop v"TESTLOOP_VERSION" (%s):\n", testTypesStr[testType]);
 
-	doInterruptLoop();
-	calculateCounterRest();
+		doInterruptLoop();
+		calculateCounterRest();
 
-	uint32_t cnt = int_counter;
-	for (int32_t i=cnt+20000; i>=cnt-20000; i+=-10000) {
-		int_counter = i;
-		calculateMhz();
-		formatFloat(calculatedFreq, floatStr, 6);
-		cprintf("%s %lu: %s MHz\n", i==cnt?"->":"  ", i, floatStr);
+		uint32_t cnt = int_counter;
+		for (int32_t i=cnt+20000; i>=cnt-20000; i+=-10000) {
+			int_counter = i;
+			calculateMhz();
+			formatFloat(calculatedFreq, floatStr, 6);
+			cprintf("%s %lu: %s MHz\n", i==cnt?"->":"  ", i, floatStr);
+		}
 	}
 }
 
@@ -723,6 +831,11 @@ int main(char **argv, int argc) __sdcccall(0)
 		if (!varNEWKEY_row7.f4 && varNEWKEY_row6.shift && tidesDetected) {
 			tidesSpeed = ++tidesSpeed % 4;
 			setTidesSpeed(tidesSpeed | TIDES_SLOTS357);
+		} else
+		// F5: Cycle speed test
+		if (!varNEWKEY_row7.f5 && varNEWKEY_row6.shift) {
+			testType = ++testType % TESTS_NUM;
+			showTestType_ptr();
 		} else
 		// F6: Toggle NTSC/PAL
 		if (!varNEWKEY_row6.f1 && !varNEWKEY_row6.shift && vdpType >= VDP_V9938) {
