@@ -64,6 +64,7 @@ uint8_t machineBrand;
 #define CPU_Z80		0
 #define CPU_R800	1
 #define CPU_Z280	2
+#define CPU_Z380	3
 uint8_t cpuType = CPU_Z80;
 bool    isCMOS;
 
@@ -186,8 +187,8 @@ static void checkPlatformSystem()
 	// Check OCM-PLD/MSX++
 	ocmDetected = ocm_detectDevice(DEVID_OCMPLD);
 
-	// Check Tides-Rider
-	tidesDetected = detectTidesRider();
+	// Check Tides-Rider (it writes the RTC mode register: skipped on Z380)
+	tidesDetected = (cpuType != CPU_Z380) && detectTidesRider();
 
 	// Machine type
 	machineBrand = detectMachineBrand();
@@ -195,13 +196,15 @@ static void checkPlatformSystem()
 	// NTSC/PAL
 	isNTSC = detectNTSC();
 
-	// Detect if Z80 is NMOS/CMOS
-	isCMOS = detectNMOS();
+	// Detect if Z80 is NMOS/CMOS (OUT (C),0 is a 3 byte instruction on Z380)
+	isCMOS = (cpuType != CPU_Z380) && detectNMOS();
 }
 
 uint8_t detectCPUtype()
 {
-	if (detectZ280()) return CPU_Z280;
+	// Z380 first: it traps the undefined opcodes used by the next tests
+	if (detectZ380()) return CPU_Z380;
+	else if (detectZ280()) return CPU_Z280;
 	else if (detectR800()) return CPU_R800;
 	return CPU_Z80;
 }
@@ -708,7 +711,7 @@ int main(char **argv, int argc) __sdcccall(0)
 			if (turboRmode > TR_R800_DRAM) turboRmode = TR_Z80;
 			setCpuTurboR(turboRmode);
 			cpuType = detectCPUtype();
-			isCMOS = detectNMOS();
+			isCMOS = (cpuType != CPU_Z380) && detectNMOS();
 			showCPUtype_ptr();
 		} else
 		// F3: Cycle OCM Speed
