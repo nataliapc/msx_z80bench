@@ -52,7 +52,7 @@ static uint8_t memTestBuffer[16];		// Stack & data for the memory tests
  * This is likely used for displaying the floating-point value in a formatted
  * way, such as in a user interface.
  */
-#define FLOATSTR_LEN	8
+#define FLOATSTR_LEN	9
 char  *floatStr;
 
 /**
@@ -76,19 +76,19 @@ uint8_t machineBrand;
 #define CPU_Z280	2
 #define CPU_Z380	3
 uint8_t cpuType = CPU_Z80;
-bool    isCMOS;
+bool    isCMOS = false;
 
 /**
  * Stores the current VDP (Video Display Processor) type of the MSX system.
  */
 uint8_t vdpType;
-bool    isNTSC;
+bool    isNTSC = false;
 
 /**
  * Stores a flag indicating whether the TurboPana feature has been detected.
  * TurboPana is a hardware enhancement for the MSX2+ allowing CPU to run at 5.36MHz.
  */
-static bool turboPanaDetected;
+static bool turboPanaDetected = false;
 static bool turboPanaEnabled = false;
 
 /**
@@ -539,6 +539,7 @@ void drawCpuSpeed()
 	putstrxy(17,5, heap_top);
 }
 
+
 // ========================================================
 void doInterruptLoop() __naked
 {
@@ -694,7 +695,7 @@ void calculateCounterRest() {
 static const uint64_t referenceNTSC[TESTS_NUM] = { 905922538492488ULL, 722764922357972ULL, 942736034355612ULL };
 static const uint64_t referencePAL[TESTS_NUM]  = { 758316840607900ULL, 605001850750682ULL, 789132161662955ULL };
 
-void calculateMhz()
+void calculateMHz()
 {
 	isNTSC = detectNTSC();
 	uint64_t reference = isNTSC ? referenceNTSC[testType] : referencePAL[testType];
@@ -750,7 +751,7 @@ void commandLine(char type)
 		uint32_t cnt = int_counter;
 		for (int32_t i=cnt+20000; i>=cnt-20000; i+=-10000) {
 			int_counter = i;
-			calculateMhz();
+			calculateMHz();
 			formatFloat(calculatedFreq, floatStr, 6);
 			cprintf("%s %lu: %s MHz\n", i==cnt?"->":"  ", i, floatStr);
 		}
@@ -802,7 +803,7 @@ int main(char **argv, int argc) __sdcccall(0)
 	do {
 		doInterruptLoop();
 		calculateCounterRest();
-		calculateMhz();
+		calculateMHz();
 		drawCpuSpeed_ptr();
 		click();
 //getch();
