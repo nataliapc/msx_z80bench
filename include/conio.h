@@ -185,7 +185,7 @@ void setcursortype(uint8_t cursor_type);
  *
  * Character attribute (Blink)     0800-08EF (090D)
  */
-//void highvideo();
+//void highvideo(void);
 
 /**
  * TODO lowvideo
@@ -195,7 +195,7 @@ void setcursortype(uint8_t cursor_type);
  * but it does affect those displayed by functions that use video
  * directly for text output after calling the lowvideo function.
  */
-//void lowvideo();
+//void lowvideo(void);
 
 /**
  * TODO normvideo
@@ -206,7 +206,7 @@ void setcursortype(uint8_t cursor_type);
  * but it does affect those displayed by functions that use video
  * directly for text output after calling the normvideo function.
  */
-//void normvideo();
+//void normvideo(void);
 
 /**
  * textcolor
@@ -245,7 +245,7 @@ void textblink(uint8_t x, uint8_t y, uint16_t length, bool enabled);
 /**
  * This function clears fullscreen text blinking.
  */
-void clrblink();
+void clrblink(void);
 
 /**
  * textattr
@@ -324,7 +324,7 @@ void gotoxy(uint8_t x, uint8_t y);
  * @return	The wherex function returns an integer between 1 and the number
  * 			of columns in the current text mode.
  */
-uint8_t wherex() __sdcccall(1);
+uint8_t wherex(void) __sdcccall(1);
 
 /**
  * wherey
@@ -334,7 +334,7 @@ uint8_t wherex() __sdcccall(1);
  * @return	The wherey function returns an integer between 1 and the number
  * 			of rows in the current text mode.
  */
-uint8_t wherey() __sdcccall(1);
+uint8_t wherey(void) __sdcccall(1);
 
 /**
  * gettext
@@ -510,7 +510,7 @@ void cputs(const char *string);
  *
  * Initial screen position in original conio library is (1,1).
  */
-void clrscr();
+void clrscr(void);
 
 /**
  * clreol
@@ -518,7 +518,7 @@ void clrscr();
  * to the end of the line within the current text window, without moving
  * the cursor position.
  */
-void clreol();
+void clreol(void);
 
 /**
  * insline
@@ -527,14 +527,14 @@ void clreol();
  * empty one are moved down one line, and the bottom line is moved out
  * of the window.
  */
-void insline();
+void insline(void);
 
 /**
  * delline
  * Deletes the line where the cursor is located and moves all lower lines
  * up one line. The delline function works in the active text window.
  */
-void delline();
+void delline(void);
 
 
 // ANCHOR =====================================================================
@@ -548,7 +548,7 @@ void delline();
  * @return	The kbhit function returns 0 if no key press has been registered;
  * 			if one is available, then the returned value is non-zero.
  */
-bool kbhit();
+bool kbhit(void);
 
 /**
  * getch
@@ -557,7 +557,7 @@ bool kbhit();
  * 
  * @return	Returns the character read from the keyboard.
  */
-int getch() __z88dk_fastcall;
+int getch(void) __z88dk_fastcall;
 
 /**
  * getche
@@ -566,7 +566,7 @@ int getch() __z88dk_fastcall;
  *
  * @return	The getche function returns the character read from the keyboard.
  */
-int getche() __z88dk_fastcall;
+int getche(void) __z88dk_fastcall;
 
 /**
  * TODO ungetch

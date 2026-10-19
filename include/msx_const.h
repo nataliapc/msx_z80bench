@@ -196,12 +196,66 @@ volatile __at (H_TIMI) uint16_t varHTIMI;
 volatile __at (FORCLR) uint16_t varFORCLR;
 volatile __at (BAKCLR) uint16_t varBAKCLR;
 volatile __at (BDRCLR) uint16_t varBDRCLR;
-volatile __at (NEWKEY+0) uint16_t varNEWKEY_row0;
-volatile __at (NEWKEY+1) uint16_t varNEWKEY_row1;
-volatile __at (NEWKEY+2) uint16_t varNEWKEY_row2;
-volatile __at (NEWKEY+3) uint16_t varNEWKEY_row3;
-volatile __at (NEWKEY+4) uint16_t varNEWKEY_row4;
-volatile __at (NEWKEY+5) uint16_t varNEWKEY_row5;
+volatile __at (NEWKEY+0) struct {
+	unsigned key0: 1;	// Key '0'
+	unsigned key1: 1;	// Key '1'
+	unsigned key2: 1;	// Key '2'
+	unsigned key3: 1;	// Key '3'
+	unsigned key4: 1;	// Key '4'
+	unsigned key5: 1;	// Key '5'
+	unsigned key6: 1;	// Key '6'
+	unsigned key7: 1;	// Key '7'
+} varNEWKEY_row0;
+volatile __at (NEWKEY+1) struct {
+	unsigned key8: 1;			// Key '8'
+	unsigned key9: 1;			// Key '9'
+	unsigned keyMinus: 1;		// Key '-'
+	unsigned keyEqual: 1;		// Key '='
+	unsigned keyBackSlash: 1;	// Key '\'
+	unsigned keyBracket: 1;		// Key '['
+	unsigned keyBracket2: 1;	// Key ']'
+	unsigned keySemicolon: 1;	// Key ';'
+} varNEWKEY_row1;
+volatile __at (NEWKEY+2) struct {
+	unsigned keyQuote: 1;	// Key '''
+	unsigned keyGrave: 1;	// Key '`'
+	unsigned keyComma: 1;	// Key ','
+	unsigned keyDot: 1;		// Key '.'
+	unsigned keySlash: 1;	// Key '/'
+	unsigned keyAccent: 1;	// Key accent
+	unsigned keyA: 1;		// Key 'a'
+	unsigned keyB: 1;		// Key 'b'
+} varNEWKEY_row2;
+volatile __at (NEWKEY+3) struct {
+	unsigned keyC: 1;		// Key 'c'
+	unsigned keyD: 1;		// Key 'd'
+	unsigned keyE: 1;		// Key 'e'
+	unsigned keyF: 1;		// Key 'f'
+	unsigned keyG: 1;		// Key 'g'
+	unsigned keyH: 1;		// Key 'h'
+	unsigned keyI: 1;		// Key 'i'
+	unsigned keyJ: 1;		// Key 'j'
+} varNEWKEY_row3;
+volatile __at (NEWKEY+4) struct {
+	unsigned keyK: 1;		// Key 'k'
+	unsigned keyL: 1;		// Key 'l'
+	unsigned keyM: 1;		// Key 'm'
+	unsigned keyN: 1;		// Key 'n'
+	unsigned keyO: 1;		// Key 'o'
+	unsigned keyP: 1;		// Key 'p'
+	unsigned keyQ: 1;		// Key 'q'
+	unsigned keyR: 1;		// Key 'r'
+} varNEWKEY_row4;
+volatile __at (NEWKEY+5) struct {
+	unsigned keyS: 1;		// Key 's'
+	unsigned keyT: 1;		// Key 't'
+	unsigned keyU: 1;		// Key 'u'
+	unsigned keyV: 1;		// Key 'v'
+	unsigned keyW: 1;		// Key 'w'
+	unsigned keyX: 1;		// Key 'x'
+	unsigned keyY: 1;		// Key 'y'
+	unsigned keyZ: 1;		// Key 'z'
+} varNEWKEY_row5;
 volatile __at (NEWKEY+6) struct {
 	unsigned shift: 1;
 	unsigned ctrl:  1;
