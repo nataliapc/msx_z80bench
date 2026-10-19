@@ -23,7 +23,7 @@ The visual presentation and operation is based on similar programs that were dev
 ## Displayed Information
 
 - **Machine:** MSX generation obtained from _BIOS ROM_ and manufacturer if available obtained from [_expanded I/O ports_](https://map.grauw.nl/resources/msx_io_ports.php#expanded_io).
-- **CPU Type:** detection is performed by checking how specific opcodes behave for each CPU. `Z80`, `R800`, and `Z280` (experimental) are detected. For `Z80` it also detects if it's `NMOS` or `CMOS`.
+- **CPU Type:** detection is performed by checking how specific opcodes behave for each CPU. `Z80`, `R800`, `Z280` (experimental) and `Z380` are detected. For `Z80` it also detects if it's `NMOS` or `CMOS`.
 - **CPU Speed:** speed calculated by the test loop.
 - **VDP Type:** video chip detection (_TMS9918, V9938, V9958_). Output frequency is also shown (_NTSC/PAL_).
 

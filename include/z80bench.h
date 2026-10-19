@@ -18,7 +18,7 @@ static const char *axisYLabelsStr[] = {
 };
 
 const char *cpuTypesStr[] = {
-	"Z80 ", "R800", "Z280"
+	"Z80 ", "R800", "Z280", "Z380"
 };
 
 const char *cmosStr[] = {
