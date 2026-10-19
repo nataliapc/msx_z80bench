@@ -1,6 +1,6 @@
 .PHONY: clean test release
 
-SDCC_VER := 4.2.0
+SDCC_VER := 4.5.0
 DOCKER_IMG = nataliapc/sdcc:$(SDCC_VER)
 DOCKER_RUN = docker run -i --rm -u $(shell id -u):$(shell id -g) -v .:/src -w /src $(DOCKER_IMG)
 
@@ -18,7 +18,7 @@ endif
 AS = $(DOCKER_RUN) sdasz80
 AR = $(DOCKER_RUN) sdar
 CC = $(DOCKER_RUN) sdcc
-HEX2BIN = hex2bin
+HEX2BIN = $(DOCKER_RUN) hex2bin
 MAKE = make -s --no-print-directory
 EMUSCRIPTS = -script ./emulation/boot.tcl
 
@@ -61,14 +61,14 @@ all: $(OBJDIR)/$(PROGRAM) $(LIBS) release
 
 $(LIBDIR)/conio.lib: $(EXTERNALS)/sdcc_msxconio/src/* $(EXTERNALS)/sdcc_msxconio/include/* $(EXTERNALS)/sdcc_msxconio/Makefile
 	$(OLIB_GUARD)
-	$(MAKE) -C $(EXTERNALS)/sdcc_msxconio all SDCC_VER=$(SDCC_VER) DEFINES=-DXXXXX
+	$(MAKE) -j -C $(EXTERNALS)/sdcc_msxconio all SDCC_VER=$(SDCC_VER) DEFINES=-DXXXXX
 	@cp $(EXTERNALS)/sdcc_msxconio/include/conio.h $(INCDIR)
 	@cp $(EXTERNALS)/sdcc_msxconio/include/conio_aux.h $(INCDIR)
 	@cp $(EXTERNALS)/sdcc_msxconio/lib/conio.lib $(LIBDIR)
 
 $(LIBDIR)/dos.lib: $(EXTERNALS)/sdcc_msxdos/src/* $(EXTERNALS)/sdcc_msxdos/include/* $(EXTERNALS)/sdcc_msxdos/Makefile
 	$(OLIB_GUARD)
-	$(MAKE) -C $(EXTERNALS)/sdcc_msxdos/ all SDCC_VER=$(SDCC_VER) DEFINES=-DDISABLE_CONIO
+	$(MAKE) -j -C $(EXTERNALS)/sdcc_msxdos/ all SDCC_VER=$(SDCC_VER) DEFINES=-DDISABLE_CONIO
 	@cp $(EXTERNALS)/sdcc_msxdos/include/dos.h $(INCDIR)
 	@cp $(EXTERNALS)/sdcc_msxdos/lib/dos.lib $(LIBDIR)
 #	@$(AR) -d $@ dos_putchar.c.rel ;
@@ -103,7 +103,7 @@ $(OBJDIR)/%.s.rel: $(SRCLIB)/%.s
 $(OBJDIR)/$(PROGRAM): $(CRT) $(LIBS) $(addprefix $(OBJDIR)/,$(subst .c,.c.rel,$(SRC)))
 	@echo "$(COL_YELLOW)######## Compiling $@$(COL_RESET)"
 	@$(CC) $(CCFLAGS) -I$(INCDIR) -L$(LIBDIR) $^ -o $(subst .com,.ihx,$@) ;
-	@$(HEX2BIN) -e com $(subst .com,.ihx,$@)
+	@$(HEX2BIN) -e com $(subst .com,.ihx,$@) ;
 
 release: $(OBJDIR)/$(PROGRAM)
 	@echo "$(COL_WHITE)**** Copying .COM file to $(DSKDIR)$(COL_RESET)"

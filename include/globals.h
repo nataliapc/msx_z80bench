@@ -1,7 +1,7 @@
 #pragma once
 
 
-#define PROGRAM_VERSION		"1.5.0"
+#define PROGRAM_VERSION		"1.5.1"
 #define TESTLOOP_VERSION	"5"
 
 #define MSX_CLOCK			((float)3.579545455f)	// MHz
