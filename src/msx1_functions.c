@@ -32,12 +32,17 @@ extern const char *vdpTypeStr[];
 extern const char *vdpModesStr[];
 extern const char *info1Str;
 extern const char *info2Str;
+extern uint8_t testType;
+extern const char *testTypesStr[];
+extern const float turboRSpeeds[];
+extern const float speedFactors[];
+extern const uint8_t speedDecimals[];
+extern const char *speedUnitsStr[];
+extern const char *speedLabelsStr[];
 
-static const char *axisXLabelsStr[] = {
-	"  5", " 10", " 15", " 20", " 25", "30"
-};
+static const float speedPerChar[TESTS_NUM] = { 1.f, 100.f, 100.f };	// Graph units per character
 static const char *axisYLabelsStr[] = {
-	"", "CPU speed", "", "", "MSX std", "", "", "turboPANA", ""
+	"", "CPU speed", "", "MSX std", "", "turboPANA", "", "turboR", "R800 DRAM"
 };
 static const char *speedLineStr = "    \x92    \x92    \x92    \x92    \x92    \x92";
 static const float speedDecLimits[] = { .14f, .29f, .43f, .57f, .71f, .86f, 1.f };
@@ -70,8 +75,10 @@ void msx1_showVDPtype()
 
 static uint16_t formatSpeedLine(char *floatStr, float speed)
 {
-	uint16_t speedUnits = (uint16_t)(speed / speedLineScale);
-	float speedDecimal = speed / speedLineScale - speedUnits;
+	speed *= speedFactors[testType];			// MHz to the unit of the test
+	float chars = speed / (speedPerChar[testType] * speedLineScale);
+	uint16_t speedUnits = (uint16_t)chars;
+	float speedDecimal = chars - speedUnits;
 	char *q = heap_top, *p;
 
 	// Prepare line buffer
@@ -87,11 +94,39 @@ static uint16_t formatSpeedLine(char *floatStr, float speed)
 	*++q = ' ';
 	q++;
 
-	// Print speed numbers
-	p = formatFloat(speed, floatStr, 2);
+	// Print speed numbers (formatFloat truncates: round the integer kB/s)
+	p = formatFloat(speedDecimals[testType] ? speed : speed + 0.5f, floatStr, speedDecimals[testType]);
 	memcpy(q, floatStr, p-floatStr);
 
 	return q-heap_top + p-floatStr;
+}
+
+void msx1_showTestType()
+{
+	uint8_t i, len;
+
+	// The labels, units, scale and reference bars follow the selected test
+	putstrxy(LABELSY_X, LABELSY_Y+1, testTypesStr[testType]);
+	csprintf(heap_top, "%s--         ", speedLabelsStr[testType]);
+	putstrxy(3,5, heap_top);
+
+	// Labels X: numbers end next to each tick (the last one, at the screen border, before it)
+	// kB/s numbers are wider: only every other tick
+	memset(heap_top, ' ', 31);
+	putlinexy(GR_X, GR_Y+GR_H+1, 31, heap_top);
+	for (i=1; i<7; i++) {
+		if (testType != TEST_CPU && (i & 1)) continue;
+		len = formatFloat(i*5*speedPerChar[testType], floatStr, 0) - floatStr;
+		putstrxy(GR_X+2+i*5-len-(i==6), GR_Y+GR_H+1, floatStr);
+	}
+
+	// Reference bars
+	formatSpeedLine(floatStr, MSX_CLOCK);		// MSX standard 3.57 MHz
+	putlinexy(GR_X+1, GR_Y+3, 30, heap_top);
+	formatSpeedLine(floatStr, MSX_CLOCK*1.5f);	// tPANA 5.36 MHz (a Z80: same for every test)
+	putlinexy(GR_X+1, GR_Y+5, 30, heap_top);
+	formatSpeedLine(floatStr, turboRSpeeds[testType]);	// turboR R800 for the selected test
+	putlinexy(GR_X+1, GR_Y+7, 30, heap_top);
 }
 
 void msx1_drawPanel()
@@ -135,10 +170,9 @@ void msx1_drawPanel()
 	cvlinexy(GR_X,GR_Y, GR_H);
 	putlinexy(GR_X,GR_Y+GR_H, 1, "\x1a");
 
-	// Labels X
+	// Axis X
 	for (i=1; i<7; i++) {
 		putlinexy(GR_X+i*5-4,GR_Y+GR_H, 5, "\x91\x91\x91\x91\x8f");
-		putstrxy(GR_X-1+i*5,GR_Y+GR_H+1, axisXLabelsStr[i-1]);
 	}
 
 	// Labels Y
@@ -147,16 +181,13 @@ void msx1_drawPanel()
 		putstrxy(LABELSY_X, LABELSY_Y+i, axisYLabelsStr[i]);
 	}
 
-	// Draw fixed graphs
-	// Draw fixed graphs
-	formatSpeedLine(floatStr, MSX_CLOCK);		// 3.57 MHz
-	putlinexy(GR_X+1, GR_Y+4, 30, heap_top);
-	formatSpeedLine(floatStr, MSX_CLOCK*1.5f);	// 5.36 MHz
-	putlinexy(GR_X+1, GR_Y+7, 30, heap_top);
+	// Test label, labels X & reference bars
+	msx1_showTestType();
 
 	// Information
 	putstrxy(3,20, info1Str);
 	putstrxy(3,21, info2Str);
+	putstrxy(3, 23, "[F5] Test");
 	putstrxy(23, 23, "Hold [ESC] to exit");
 }
 
@@ -184,11 +215,10 @@ void msx1_drawCpuSpeed()
 	waitVBLANK();
 	putlinexy(GR_X+1, GR_Y+1, 30, heap_top);
 
-	// Print CPU speed in top panel
-	p = floatStr;
-	while (*p) p++;
-	memcpy(p, " MHz  ", 7);
-	putstrxy(15,5, floatStr);
+	// Print CPU/memory speed in top panel
+	csprintf(heap_top, "%s %s          ", floatStr, speedUnitsStr[testType]);
+	heap_top[11] = '\0';						// Up to the % column
+	putstrxy(15,5, heap_top);
 }
 
 void msx1_textattr(uint16_t attr) __naked __z88dk_fastcall

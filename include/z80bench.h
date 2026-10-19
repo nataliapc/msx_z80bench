@@ -14,12 +14,34 @@ static const char *axisXLabelsStr[] = {
 	" 5MHz", "10MHz", "15MHz", "20MHz", "25MHz", "  30"
 };
 static const char *axisYLabelsStr[] = {
-	"", "CPU speed", "(MHz)", "", "MSX standard", "(3.579MHz)", "", "MSX2+ tPANA", "(5.369MHz)"
+	"", "CPU speed", "(MHz)", "MSX standard", "(3.579MHz)", "MSX2+ tPANA", "(5.369MHz)", "turboR R800", "(DRAM mode)"
+};
+
+// turboR reference bar, one per test.
+// Measured with openMSX: Panasonic FS-A1ST, R800 DRAM mode, NTSC.
+const float turboRSpeeds[TESTS_NUM] = {
+	20.59f, 14.42f, 14.50f
 };
 
 const char *cpuTypesStr[] = {
 	"Z80 ", "R800", "Z280", "Z380"
 };
+
+const char *testTypesStr[] = {
+	"CPU speed", "Mem 8bit ", "Mem 16bit"
+};
+
+// Speed shown per test: MHz for the CPU test, kB/s (1 kB = 1000 bytes) for the
+// memory tests. The equivalent MHz is the MSX Z80 T-states of the test over its
+// run time, so kB/s = MHz * bytes moved / T-states * 1000:
+//   Mem 8bit:  2*65535*8  bytes / 12058485 T-states
+//   Mem 16bit: 2*65535*16 bytes / 15728445 T-states
+const float speedFactors[TESTS_NUM] = { 1.f, 86.9562f, 133.3330f };
+const uint8_t speedDecimals[TESTS_NUM] = { 2, 0, 0 };
+const char *speedUnitsStr[TESTS_NUM] = { "MHz", "kB/s", "kB/s" };
+const char *speedLabelsStr[TESTS_NUM] = { "CPU Speed : ", "Mem Speed : ", "Mem Speed : " };
+static const char *speedAxisStr[TESTS_NUM] = { "(MHz) ", "(kB/s)", "(kB/s)" };
+static const float speedPerChar[TESTS_NUM] = { 0.5f, 50.f, 50.f };	// Graph units per character (scale 1)
 
 const char *cmosStr[] = {
 	"CMOS", "NMOS"

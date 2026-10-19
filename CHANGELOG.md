@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.5.0] - 2026-10-18
+
+### Added
+
+- Two memory speed tests, selected with F5 (CPU speed, Mem 8bit, Mem 16bit).
+  They show the memory speed in kB/s (1 kB = 1000 bytes): the bytes moved by
+  the test loop divided by its run time. The README explains the calculation.
+  - Mem 8bit: reads and writes RAM one byte at a time (`LD A,(DE)` /
+    `LD (DE),A`).
+  - Mem 16bit: reads and writes RAM one word at a time with `POP DE` /
+    `PUSH DE` on a stack at an even address. A CPU with a 16-bit data bus,
+    like the Z380 in the XRX, can do each access in one bus cycle.
+- The graph has a turboR R800 (DRAM mode) reference bar, next to MSX standard
+  and MSX2+ TurboPana, with the value of the selected test (CPU speed
+  20.59 MHz, Mem 8bit 1254 kB/s, Mem 16bit 1933 kB/s, measured with openMSX
+  on a Panasonic FS-A1ST).
+- The debug mode (`z80bench d`) runs the three tests. It shows every result as
+  the equivalent Z80 clock (MHz), used to check the calibration.
+
 ## [1.4.3] - 2026-10-18
 
 ### Added
