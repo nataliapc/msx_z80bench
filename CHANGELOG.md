@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.5.1] - 2026-10-19
+
+### Changed
+
+- The program is built with SDCC 4.5.0 (it was 4.2.0), using the Docker image
+  `nataliapc/sdcc:4.5.0`.
+- `hex2bin` now runs inside the same Docker image, so the build no longer needs
+  a host-installed `hex2bin`. The `conio` and `dos` libraries are built with
+  `make -j` (thanks to @Pax-nl).
+- The `sdcc_msxconio` and `sdcc_msxdos` submodules are updated, and the
+  `conio.h`, `conio_aux.h` and `dos.h` headers are synced with them: empty
+  parameter lists are now `(void)`, as SDCC 4.5.0 requires, and `dos.h` adds
+  the DOS 2 functions for rename, move, attributes, change directory, IOCTL,
+  EOF, file size and file exists.
+
 ## [1.5.0] - 2026-10-18
 
 ### Added
