@@ -211,7 +211,8 @@ static void checkPlatformSystem()
 	ocmDetected = !fpgaBoard && ocm_detectDevice(DEVID_OCMPLD);
 
 	// Check Tides-Rider (it writes the RTC mode register: skipped on Z380)
-	tidesDetected = (cpuType != CPU_Z380) && detectTidesRider();
+	// (skipped on MSXnano/MSXimus: their RTC register 14 of block 2 is RAM, not 0xFF)
+	tidesDetected = (cpuType != CPU_Z380) && !fpgaBoard && detectTidesRider();
 
 	// Machine type
 	machineBrand = detectMachineBrand();

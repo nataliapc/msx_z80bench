@@ -83,7 +83,7 @@ The keys must be held down until you hear a click sound, which is when each of t
 - **F1:** Toggle _TurboPana_ CPU speed (_3.57MHz, and 5.36MHz_). Also on _MSXnano_ and _MSXimus_, which have the _Panasonic_ turbo.
 - **F2:** Cycle _TurboR_ CPU (_Z80, R800(ROM), and R800(DRAM)_).
 - **F3:** Cycle _OCM_ Speed (_3.57MHz, 5.36MHz, 4.10MHz, 4.48MHz, 4.90MHz, 5.39MHz, 6.10MHz, 9.96MHz, and 8.06MHz_). Not on _MSXnano_ and _MSXimus_: they answer to the _OCM_ device ID, but they don't have its custom speeds.
-- **F4:** Cycle _Tides-Rider_ Speed (3.57MHz, 6.66MHz, 10MHz, and 20MHz).
+- **F4:** Cycle _Tides-Rider_ Speed (3.57MHz, 6.66MHz, 10MHz, and 20MHz). Not on _MSXnano_ and _MSXimus_.
 - **F5:** Cycle the speed test (_CPU speed, Mem 8bit, and Mem 16bit_).
 - **F6:** Toggle _NTSC/PAL_. CPU Speed may vary slightly when changing this value due to the different interrupts frequency (_60/50Hz_ respectively).
 

@@ -21,6 +21,11 @@
   to cycle the OCM speeds. They answer to the OCM device ID (`D4h`) when their
   megaram is on, but the speed commands do nothing there. F3 is no longer
   shown on these boards. Their turbo is the Panasonic one, so F1 is shown.
+- The F4 Tides-Rider option was shown on the MSXnano and MSXimus boards. Their
+  RTC (the OCM `rtc.v`) reads register 14 of block 2 as a RAM nibble with the
+  high nibble at `F`, not `FFh` like the RP5C01, so the Tides-Rider detection
+  saw a board. It is skipped on these boards, so the program no longer writes
+  to their RTC.
 
 ## [1.5.1] - 2026-10-19
 
