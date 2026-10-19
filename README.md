@@ -4,7 +4,7 @@
 
 **Z80BENCH** program allows you to measure and manage your MSX CPU speed.
 
-It has been created with not only _Panasonic MSX_ with _TurboPana_ and _MSX TurboR_ machines in mind, but also _FPGA_ machines [_OCM/MSX++_](https://github.com/gnogni/ocm-pld-dev), and MSX based on boards and hardware developments like [_Tides-Rider_](https://genami.shop/blogs/news/requirements-to-assemble-a-tides-rider) and [_Taka-Nami_](https://genami.shop/blogs/news/knowing-the-taka-nami) that allow different CPU speeds.
+It has been created with not only _Panasonic MSX_ with _TurboPana_ and _MSX TurboR_ machines in mind, but also _FPGA_ machines like [_OCM/MSX++_](https://github.com/gnogni/ocm-pld-dev), [_MSXnano_](https://github.com/Papipapito/MSXnano) and [_MSXimus_](https://github.com/Papipapito/MSXimus), and MSX based on boards and hardware developments like [_Tides-Rider_](https://genami.shop/blogs/news/requirements-to-assemble-a-tides-rider) and [_Taka-Nami_](https://genami.shop/blogs/news/knowing-the-taka-nami) that allow different CPU speeds.
 
 The measurement is approximate and is based on the number of _VDP_ interrupts that occur during a test loop in `IM1` mode.
 
@@ -23,6 +23,7 @@ The visual presentation and operation is based on similar programs that were dev
 ## Displayed Information
 
 - **Machine:** MSX generation obtained from _BIOS ROM_ and manufacturer if available obtained from [_expanded I/O ports_](https://map.grauw.nl/resources/msx_io_ports.php#expanded_io).
+  - _FPGA_ boards with the _goa'uld_ config device (ID `48h` in the expanded I/O ports) are shown by name, from the core version in I/O port `2Fh`: `MSXnano` (Tang Nano 20K, version `1X`-`2X`), `MSXimus` (Tang Console 60K/138K, `3X`-`9X`) and `MSXimus Z` (Zynq, `A0` and up). The 60K and 138K cores give the same version: the 60K core (since 3.7.2) is told apart by its I/O ports `20h`-`27h` (last gamepad report), which read `FFh` on the 138K. With an older core it is shown as just `MSXimus`.
 - **CPU Type:** detection is performed by checking how specific opcodes behave for each CPU. `Z80`, `R800`, `Z280` (experimental) and `Z380` are detected. For `Z80` it also detects if it's `NMOS` or `CMOS`.
 - **CPU Speed / Mem Speed:** result of the selected test (see [Speed tests](#speed-tests)).
 - **VDP Type:** video chip detection (_TMS9918, V9938, V9958_). Output frequency is also shown (_NTSC/PAL_).
@@ -79,10 +80,10 @@ The options are only shown if they are detected as possible.
 
 The keys must be held down until you hear a click sound, which is when each of the tests ends and keyboard can be read again.
 
-- **F1:** Toggle _TurboPana_ CPU speed (_3.57MHz, and 5.36MHz_).
+- **F1:** Toggle _TurboPana_ CPU speed (_3.57MHz, and 5.36MHz_). Also on _MSXnano_ and _MSXimus_, which have the _Panasonic_ turbo.
 - **F2:** Cycle _TurboR_ CPU (_Z80, R800(ROM), and R800(DRAM)_).
-- **F3:** Cycle _OCM_ Speed (_3.57MHz, 5.36MHz, 4.10MHz, 4.48MHz, 4.90MHz, 5.39MHz, 6.10MHz, 9.96MHz, and 8.06MHz_).
-- **F4:** Cycle _Tides-Rider_ Speed (3.57MHz, 6.66MHz, 10MHz, and 20MHz).
+- **F3:** Cycle _OCM_ Speed (_3.57MHz, 5.36MHz, 4.10MHz, 4.48MHz, 4.90MHz, 5.39MHz, 6.10MHz, 9.96MHz, and 8.06MHz_). Not on _MSXnano_ and _MSXimus_: they answer to the _OCM_ device ID, but they don't have its custom speeds.
+- **F4:** Cycle _Tides-Rider_ Speed (3.57MHz, 6.66MHz, 10MHz, and 20MHz). Not on _MSXnano_ and _MSXimus_.
 - **F5:** Cycle the speed test (_CPU speed, Mem 8bit, and Mem 16bit_).
 - **F6:** Toggle _NTSC/PAL_. CPU Speed may vary slightly when changing this value due to the different interrupts frequency (_60/50Hz_ respectively).
 

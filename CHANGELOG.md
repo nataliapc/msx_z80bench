@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.5.2] - 2026-10-19
+
+### Added
+
+- Detection of the _MSXnano_ and _MSXimus_ FPGA boards, shown as the machine
+  brand: `MSXnano`, `MSXimus 60K`, `MSXimus 138K` and `MSXimus Z`. They have
+  the config device of the goa'uld core (ID `48h` in the expanded I/O port
+  `40h`), and the board comes from the core version in I/O port `2Fh`:
+  `1X`-`2X` MSXnano, `3X`-`9X` MSXimus on Tang Console, `A0` and up MSXimus Z
+  (Zynq). The 60K and 138K cores give the same version, so the 60K is told
+  apart by its I/O ports `20h`-`27h` (last gamepad report, since 3.7.2), which
+  read `FFh` on the 138K. An older Tang Console core is shown as `MSXimus`.
+  Nothing is written to these boards except the device selection in port
+  `40h`, which is restored.
+
+### Fixed
+
+- The MSXnano and MSXimus boards were shown as `OCM/MSX++`, with the F3 option
+  to cycle the OCM speeds. They answer to the OCM device ID (`D4h`) when their
+  megaram is on, but the speed commands do nothing there. F3 is no longer
+  shown on these boards. Their turbo is the Panasonic one, so F1 is shown.
+- The F4 Tides-Rider option was shown on the MSXnano and MSXimus boards. Their
+  RTC (the OCM `rtc.v`) reads register 14 of block 2 as a RAM nibble with the
+  high nibble at `F`, not `FFh` like the RP5C01, so the Tides-Rider detection
+  saw a board. It is skipped on these boards, so the program no longer writes
+  to their RTC.
+
 ## [1.5.1] - 2026-10-19
 
 ### Changed

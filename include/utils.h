@@ -54,6 +54,14 @@ void setNTSC(bool enabled) __sdcccall(1);
 bool detectTidesRider() __sdcccall(1);
 void setTidesSpeed(uint8_t speed) __z88dk_fastcall;
 
+#define FPGA_NONE			0
+#define FPGA_MSXNANO		1
+#define FPGA_MSXIMUS		2	// Tang Console 60K or 138K, older core
+#define FPGA_MSXIMUS_60K	3
+#define FPGA_MSXIMUS_138K	4
+#define FPGA_MSXIMUS_Z		5
+uint8_t detectFpgaBoard();
+
 uint8_t getRegisterRTC(uint8_t reg, uint8_t block);
 void setRegisterRTC(uint8_t reg, uint8_t block, uint8_t value);
 

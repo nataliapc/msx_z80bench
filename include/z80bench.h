@@ -68,6 +68,7 @@ const char *machineTypeStr[] = {
 };
 
 #define BRAND_OCMPLD	27
+#define BRAND_FPGA		27		// + FPGA_xxx board from detectFpgaBoard()
 const char *machineBrandStr[] = {
 	// [0] Unknown
 	"",
@@ -76,7 +77,9 @@ const char *machineBrandStr[] = {
 	"Yamaha", "JVC", "Philips", "Pioneer", "Sanyo", "Sharp", "Sony", "Spectravideo", "Toshiba", "Mitsumi", 
 	"Telematica", "Gradiente", "Sharp Brasil", "GoldStar", "Daewoo", "Samsung",
 	// [27] OCM/MSX++
-	"OCM/MSX++"
+	"OCM/MSX++",
+	// [28-32] FPGA boards (detectFpgaBoard)
+	"MSXnano", "MSXimus", "MSXimus 60K", "MSXimus 138K", "MSXimus Z"
 };
 
 static const char *speedLineStr = "         \x92         \x92         \x92         \x92         \x92         \x92";

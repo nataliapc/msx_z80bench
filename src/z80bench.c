@@ -109,6 +109,13 @@ static bool ocmDetected;
 static uint8_t ocmSpeedIdx = -1;
 
 /**
+ * Stores the MSXnano/MSXimus FPGA board detected (FPGA_xxx in utils.h).
+ * These boards also answer to the OCM device ID, but they don't have its
+ * custom CPU speeds: they use the Panasonic turbo (F1) instead.
+ */
+static uint8_t fpgaBoard;
+
+/**
  * Stores a flag indicating whether the Tides-Rider board has been detected.
  * Tides-Rider is a MSX2+ board allowing the CPU to run at:
  * 3.57MHz, 6.66MHz, 10MHz, 20MHz.
@@ -197,11 +204,15 @@ static void checkPlatformSystem()
 		turboRmode = getCpuTurboR();
 	}
 
-	// Check OCM-PLD/MSX++
-	ocmDetected = ocm_detectDevice(DEVID_OCMPLD);
+	// Check MSXnano/MSXimus
+	fpgaBoard = detectFpgaBoard();
+
+	// Check OCM-PLD/MSX++ (not on MSXnano/MSXimus: its speed commands do nothing there)
+	ocmDetected = !fpgaBoard && ocm_detectDevice(DEVID_OCMPLD);
 
 	// Check Tides-Rider (it writes the RTC mode register: skipped on Z380)
-	tidesDetected = (cpuType != CPU_Z380) && detectTidesRider();
+	// (skipped on MSXnano/MSXimus: their RTC register 14 of block 2 is RAM, not 0xFF)
+	tidesDetected = (cpuType != CPU_Z380) && !fpgaBoard && detectTidesRider();
 
 	// Machine type
 	machineBrand = detectMachineBrand();
@@ -224,6 +235,9 @@ uint8_t detectCPUtype()
 
 uint8_t detectMachineBrand()
 {
+	if (fpgaBoard) {
+		return BRAND_FPGA + fpgaBoard;
+	}
 	if (ocmDetected) {
 		return BRAND_OCMPLD;
 	}
