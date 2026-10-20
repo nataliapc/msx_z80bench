@@ -50,8 +50,9 @@ const char *cmosStr[] = {
 #define VDP_TMS9918A	0
 #define VDP_V9938		1
 #define VDP_V9958		2
+#define VDP_V9968		3
 const char *vdpTypeStr[] = {
-	"TMS9918A", "V9938", "V9958"
+	"TMS9918A", "V9938", "V9958", "V9968"
 };
 
 static const char *turboRmodeStr[] = {
@@ -60,6 +61,10 @@ static const char *turboRmodeStr[] = {
 
 const char *vdpModesStr[] = {
 	"(PAL 50Hz) ", "(NTSC 60Hz)"
+};
+
+const char *vdpModesShortStr[] = {	// next to a V9990, the frequency doesn't fit
+	"(PAL) ", "(NTSC)"
 };
 
 const char *machineTypeStr[] = {

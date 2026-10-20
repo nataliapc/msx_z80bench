@@ -18,7 +18,9 @@ extern uint8_t machineBrand;
 extern uint8_t cpuType;
 extern bool    isCMOS;
 extern uint8_t vdpType;
+extern char    vdpName[];
 extern bool    isNTSC;
+extern bool    v9990Detected;
 extern const char titleStr[];
 extern const char authorStr[];
 extern const char infoMachineStr[];
@@ -30,6 +32,7 @@ extern const char *cpuTypesStr[];
 extern const char *cmosStr[];
 extern const char *vdpTypeStr[];
 extern const char *vdpModesStr[];
+extern const char *vdpModesShortStr[];
 extern const char *info1Str;
 extern const char *info2Str;
 extern uint8_t testType;
@@ -62,7 +65,11 @@ void msx1_showCPUtype()
 
 void msx1_showVDPtype()
 {
-	csprintf(heap_top, "%s  %s", vdpTypeStr[vdpType], vdpModesStr[isNTSC]);
+	if (v9990Detected) {
+		csprintf(heap_top, "%s+V9990  %s", vdpName, vdpModesShortStr[isNTSC]);
+	} else {
+		csprintf(heap_top, "%s  %s", vdpName, vdpModesStr[isNTSC]);
+	}
 	putstrxy(15,6, heap_top);
 }
 

@@ -35,6 +35,7 @@ char getKanjiMode() __sdcccall(1);
 void setKanjiMode(uint8_t mode) __z88dk_fastcall;
 
 uint8_t detectVDP() __sdcccall(1);
+bool detectV9990();
 bool detectR800() __sdcccall(0);
 bool detectZ280() __sdcccall(0);
 bool detectZ380() __sdcccall(1);
