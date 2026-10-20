@@ -25,7 +25,9 @@ The visual presentation and operation is based on similar programs that were dev
 - **Machine:** MSX generation obtained from _BIOS ROM_ and manufacturer if available obtained from [_expanded I/O ports_](https://map.grauw.nl/resources/msx_io_ports.php#expanded_io).
 - **CPU Type:** detection is performed by checking how specific opcodes behave for each CPU. `Z80`, `R800`, `Z280` (experimental) and `Z380` are detected. For `Z80` it also detects if it's `NMOS` or `CMOS`.
 - **CPU Speed / Mem Speed:** result of the selected test (see [Speed tests](#speed-tests)).
-- **VDP Type:** video chip detection (_TMS9918, V9938, V9958_). Output frequency is also shown (_NTSC/PAL_).
+- **VDP Type:** video chip detection (_TMS9918, V9938, V9958, V9968_). Output frequency is also shown (_NTSC/PAL_).
+  - The _V9968_ (HRA!) is shown when its VDP ID is `3` (its native mode). An unknown VDP ID is shown as `Unknown#n`, with the ID number.
+  - A _V9990_ (_GFX9000_, also inside the _MSXimus Z_) is shown next to the main VDP, as `V9958+V9990 (NTSC)`: the frequency doesn't fit next to it, so only _NTSC/PAL_ is shown (the debug mode shows the frequency too). It is found by writing and reading back its register `R#15` (back drop color) through I/O ports `64h`/`63h`, which is then restored.
 
 ## Speed tests
 

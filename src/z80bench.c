@@ -80,9 +80,18 @@ bool    isCMOS = false;
 
 /**
  * Stores the current VDP (Video Display Processor) type of the MSX system.
+ * An unknown VDP ID is handled as a V9958 (vdpType), but it is shown as
+ * "Unknown#n" (vdpName).
  */
 uint8_t vdpType;
+char    vdpName[11];
 bool    isNTSC = false;
+
+/**
+ * Stores a flag indicating whether a V9990 (GFX9000) has been detected.
+ * It is a second VDP, so it is shown next to the main one.
+ */
+bool    v9990Detected = false;
 
 /**
  * Stores a flag indicating whether the TurboPana feature has been detected.
@@ -152,8 +161,15 @@ static void checkPlatformSystem()
 	// Check MSX2 ROM or higher
 	msxVersionROM = getRomByte(MSXVER);
 
-	// VDP type
+	// VDP type (ID 3 is the V9968 in its native mode)
 	vdpType = detectVDP();
+	if (vdpType > VDP_V9968) {						// unknown VDP ID: handled as a V9958
+		csprintf(vdpName, "Unknown#%u", vdpType);
+		vdpType = VDP_V9958;
+	} else {
+		strcpy(vdpName, vdpTypeStr[vdpType]);
+	}
+	v9990Detected = detectV9990();
 	if (!msxVersionROM && vdpType >= VDP_V9938) {	// for MSX1 with V9938 or higher
 		varRG9SAV.raw = 0;
 		varRG9SAV.NT = !(getRomByte(LOCALE) >> 7);
@@ -298,7 +314,12 @@ void showCPUtype()
 
 void showVDPtype()
 {
-	csprintf(heap_top, "%s %s", vdpTypeStr[vdpType], vdpModesStr[detectNTSC()]);
+	if (v9990Detected) {
+		csprintf(heap_top, "%s+V9990 %s", vdpName, vdpModesShortStr[detectNTSC()]);
+	} else {
+		csprintf(heap_top, "%s %s", vdpName, vdpModesStr[detectNTSC()]);
+	}
+	heap_top[22] = '\0';						// Up to the frame border
 	putstrxy(17,6, heap_top);
 }
 
@@ -739,7 +760,7 @@ void commandLine(char type)
 	putch('\n');
 	// Video mode
 	cputs(infoVdpTypeStr);
-	cprintf("%s %s\n", vdpTypeStr[vdpType], vdpModesStr[detectNTSC()]);
+	cprintf("%s%s %s\n", vdpName, v9990Detected ? "+V9990" : "", vdpModesStr[detectNTSC()]);
 	
 	// Speed tests
 	for (testType = TEST_CPU; testType < TESTS_NUM; testType++) {

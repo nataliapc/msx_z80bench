@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.5.2] - 2026-10-20
+
+### Added
+
+- V9968 detection (HRA!'s VDP): a VDP ID of `3` in S#1 (its native mode) is
+  shown as V9968.
+- V9990 detection (GFX9000, and the one inside the MSXimus Z). Its register
+  `R#15` (back drop color) is written with two patterns through I/O ports
+  `64h`/`63h` and read back, then restored. It is shown next to the main VDP,
+  as `V9958+V9990 (NTSC)`: the frequency doesn't fit next to it, so only
+  NTSC/PAL is shown. The debug mode (`z80bench d`) shows both VDPs and the
+  frequency.
+
+### Fixed
+
+- A VDP ID other than `1` or `2` read past the end of the VDP names (1.5.1
+  showed an empty name for the V9968 in native mode). An unknown ID is now
+  shown as `Unknown#n`, with the ID number, and handled internally as a V9958.
+
 ## [1.5.1] - 2026-10-19
 
 ### Changed
